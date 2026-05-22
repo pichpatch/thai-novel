@@ -216,3 +216,22 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ── thai-novel project-specific ─────────────────────────────────────────────
+# Generated outputs
+out/
+in/
+
+# Music tracks (user-supplied; the README is checked in)
+music/*.mp3
+music/*.m4a
+music/*.wav
+music/*.flac
+music/*.ogg
+!music/README.md
+
+# Cached intro renders (the user-supplied intro.mp4 stays tracked if added)
+intro/_generated_*.*
+intro/cache/
+
+.DS_Store

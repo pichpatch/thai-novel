@@ -1,0 +1,18 @@
+# Image generation — Z-Image-Turbo via diffusers
+torch>=2.4
+git+https://github.com/huggingface/diffusers
+transformers>=4.46
+accelerate>=1.0
+safetensors
+sentencepiece
+protobuf
+python-dotenv
+
+# Thai TTS
+pythaitts>=0.2.1
+
+# Pipeline plumbing
+Pillow>=10.0
+pyyaml>=6.0
+
+# We shell out to ffmpeg directly (installed via Homebrew); no python-ffmpeg needed.

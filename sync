@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# ./sync [--voices-only] [--refresh-pip]
+#
+# Pre-fetch / refresh local model caches:
+#   • Z-Image-Turbo image model (~12 GB)
+#   • All four Vachana Thai voices
+#   • Optionally: pip dependencies
+#
+# Safe to run repeatedly. Only files that changed upstream are re-downloaded.
+
+set -euo pipefail
+
+cd "$(cd "$(dirname "$0")" && pwd)"
+
+if [ ! -x .venv/bin/python ]; then
+  echo "❌ .venv missing. Run ./run first." >&2
+  exit 1
+fi
+
+exec .venv/bin/python sync.py "$@"

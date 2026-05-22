@@ -1,0 +1,24 @@
+{
+  "title": "ราชวงศ์แห่งเงา - ตอนตัวอย่าง",
+  "channel": "ThAI Novel",
+  "channel_spoken": "ที เอช. เอ ไอ โนเวล",
+  "language": "th",
+  "engine": "vachana",
+  "voice": "th_f_2",
+  "speed": 0.95,
+  "sentence_pause_ms": 250,
+  "scenes": [
+    {
+      "narration": "ราชวงศ์แห่งเงา บันทึกแห่งวงล้อทอง นิยายขนาดยาว สี่สิบห้าตอน",
+      "image_prompt": "Cinematic dark fantasy Thai novel cover, golden wheel motif in shadow, dramatic chiaroscuro lighting, moody atmosphere"
+    },
+    {
+      "narration": "ในประวัติศาสตร์โลก มีตระกูลธนาคารยุโรปจริงๆ ที่ยิ่งใหญ่ตั้งแต่ยุคฟื้นฟูศิลปวิทยา",
+      "image_prompt": "Renaissance European banking hall, oil painting style, candlelit ledgers and gold coins, atmospheric"
+    },
+    {
+      "narration": "นี่คือเรื่องของ เคน อรุณวงศ์",
+      "image_prompt": "A contemplative young Thai man standing in the rain on a Bangkok street at night, neon reflections, cinematic"
+    }
+  ]
+}
