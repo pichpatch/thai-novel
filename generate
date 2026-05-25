@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# ./generate — one-shot: JSON in ./in/ → MP4 in ./novels/<id>/output/final.mp4
+#
+# Auto-bootstraps ./.venv and node_modules/ on first run, then runs the
+# full pipeline (narrate → images → timeline → Remotion → mux) and exits.
+#
+# About "activation" — there's nothing to activate or deactivate. We invoke
+# .venv/bin/thai-novel by its absolute path, so the venv's Python is used
+# without ever modifying your shell's PATH. When ./generate finishes, your
+# shell is exactly the same as before you ran it.
+#
+# Usage:
+#   ./generate                  # auto-pick the single in/*.json
+#   ./generate devil-cafe-ep01  # pick a specific episode id
+#   ./generate in/foo.json      # or an explicit path
+# ----------------------------------------------------------------------------
+set -euo pipefail
+cd "$(dirname "$0")"
+
+VENV=".venv"
+
+# ── Status helpers ──────────────────────────────────────────────────────────
+say() { printf "\033[1;36m==>\033[0m %s\n" "$*" >&2; }
+die() { printf "\033[1;31mERROR:\033[0m %s\n" "$*" >&2; exit 1; }
+
+# ── 1. First-run Python venv bootstrap (one-time, ~30 seconds) ──────────────
+if [[ ! -x "$VENV/bin/thai-novel" ]]; then
+  say "first run: setting up $VENV/ (one-time, ~30 seconds)"
+  PY=""
+  for cand in python3.13 python3.12 python3.11; do
+    if command -v "$cand" >/dev/null 2>&1; then PY="$cand"; break; fi
+  done
+  [[ -z "$PY" ]] && die "need Python >= 3.11. Install with: brew install python@3.13"
+
+  "$PY" -m venv "$VENV"
+  "$VENV/bin/pip" install --quiet --upgrade pip
+  "$VENV/bin/pip" install --quiet -e .
+fi
+
+# ── 2. First-run Node deps (one-time, ~1 minute) ────────────────────────────
+if [[ ! -d "node_modules/remotion" ]]; then
+  command -v npm >/dev/null 2>&1 || die "need Node 22+. Install with: brew install node"
+  say "first run: installing Remotion (one-time, ~1 minute)"
+  npm install --silent
+fi
+
+# ── 3. Run the full pipeline. exec replaces the bash process with python,
+#       so when python exits, the whole ./generate call exits cleanly.
+exec "$VENV/bin/thai-novel" render "$@"

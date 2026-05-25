@@ -1,0 +1,9 @@
+{
+  "_description": "Ambience layer (rain, cafe chatter, etc.). Always loops under everything at low volume.",
+  "_how_to_add": "Drop a file here named <name>.mp3 (or .wav/.ogg/.flac). Loopable, 60s+ recommended.",
+  "_referenced_by_example": {
+    "rain_soft":    "default + romantic moods",
+    "cafe_quiet":   "cozy + funny moods (low cafe murmur, no music)",
+    "rain_window":  "melancholy mood (rain hitting a window)"
+  }
+}

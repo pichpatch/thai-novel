@@ -1,0 +1,12 @@
+{
+  "_description": "Music bed library. Names referenced from JSON specs as 'library://music/<name>'.",
+  "_how_to_add": "Drop a file here named <name>.mp3 (or .wav/.ogg/.flac). Loopable instrumental, 60s+ recommended.",
+  "_referenced_by_example": {
+    "cozy_piano_01":   "default music bed (also for melancholy → swap to piano_rain_01)",
+    "playful_uke_01":  "funny + playful moods",
+    "strings_warm_02": "romantic moods",
+    "piano_rain_01":   "melancholy mood",
+    "intro_theme":     "channel intro background (under 'Welcome to channel THAI Novel')"
+  },
+  "_notes": "Royalty-free sources: pixabay.com/music, freemusicarchive.org, incompetech.com (Kevin MacLeod). Match the cozy/romantic palette."
+}

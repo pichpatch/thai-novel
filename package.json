@@ -1,0 +1,23 @@
+{
+  "name": "thai-novel-remotion",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Remotion compositions for the thai-novel pipeline. Drives all video rendering.",
+  "scripts": {
+    "preview": "remotion studio remotion/src/index.ts",
+    "render": "remotion render remotion/src/index.ts",
+    "bundle": "remotion bundle remotion/src/index.ts cache/remotion-bundle"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.250",
+    "@remotion/cli": "^4.0.250",
+    "@remotion/renderer": "^4.0.250",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.250"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "typescript": "^5.6.3"
+  }
+}

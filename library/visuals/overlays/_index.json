@@ -1,0 +1,7 @@
+{
+  "_description": "Overlay images: channel logo, light leaks, vignettes, etc.",
+  "_referenced_by_example": {
+    "channel_logo": "shown during the intro (Welcome to channel THAI Novel)"
+  },
+  "_how_to_add": "Drop a .png (with alpha) or .webp here named <name>.<ext>."
+}

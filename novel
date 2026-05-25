@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# ./novel — the only entry point you need.
+#
+#   ./novel doctor                  # check env, fetch what's missing
+#   ./novel new <id>                # scaffold in/<id>.json from in/example.json
+#   ./novel validate [<id>]         # schema check + pacing warnings
+#   ./novel narrate [<id>]          # synthesize narration WAVs       (Phase B)
+#   ./novel images [<id>] [--force] # resolve/generate visual anchors (Phase C)
+#   ./novel preview [<id>]          # remotion studio on :3000        (Phase D)
+#   ./novel render [<id>]           # build the final MP4             (Phase D-E)
+#
+# First run auto-creates ./.venv (one-time, ~30s). Nothing touches your shell config.
+# ----------------------------------------------------------------------------
+set -euo pipefail
+cd "$(dirname "$0")"
+
+VENV=".venv"
+
+# ── First run: create venv and install package in editable mode ─────────────
+if [[ ! -x "$VENV/bin/python3" ]]; then
+  echo "==> First run: creating $VENV/ and installing thai-novel..." >&2
+
+  PY=""
+  for cand in python3.13 python3.12 python3.11; do
+    if command -v "$cand" >/dev/null 2>&1; then PY="$cand"; break; fi
+  done
+  if [[ -z "$PY" ]]; then
+    echo "ERROR: need Python >= 3.11. Install with: brew install python@3.13" >&2
+    exit 1
+  fi
+
+  "$PY" -m venv "$VENV"
+  "$VENV/bin/pip" install --quiet --upgrade pip
+  "$VENV/bin/pip" install --quiet -e .
+  echo "==> Ready." >&2
+  echo "" >&2
+fi
+
+# ── Dispatch to the Typer CLI ───────────────────────────────────────────────
+exec "$VENV/bin/thai-novel" "$@"
