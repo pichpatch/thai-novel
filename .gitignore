@@ -73,3 +73,4 @@ voices/*.onnx
 *.swo
 
 manuscripts/
+library/visuals/backgrounds/

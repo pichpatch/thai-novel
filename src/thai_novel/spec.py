@@ -152,7 +152,7 @@ class AudioConfig(BaseModel):
 
 
 class SubtitleConfig(BaseModel):
-    enabled: bool = True
+    enabled: bool = False                                    # off by default — subs overlay can crowd the cinematic frame
     font: str = "Sarabun"
     size_px: int = 48
     max_chars_per_line: int = 38

@@ -72,11 +72,13 @@ export const Episode: React.FC<Props> = ({ timeline }) => {
                     motion={b.motion}
                     colorGrade={b.color_grade}
                   />
-                  <Subtitle
-                    cues={b.subtitles}
-                    config={timeline.subtitles_config}
-                    emphasis={b.subtitle_emphasis}
-                  />
+                  {timeline.subtitles_config.enabled && (
+                    <Subtitle
+                      cues={b.subtitles}
+                      config={timeline.subtitles_config}
+                      emphasis={b.subtitle_emphasis}
+                    />
+                  )}
                   <Audio src={staticFile(b.audio_path)} volume={1.0} />
                 </Sequence>
               );

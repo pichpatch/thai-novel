@@ -148,31 +148,31 @@ async def finalize(
     )
     args += ["-filter_complex", ";".join(filter_lines)]
 
+    # ── Size-optimized encode ────────────────────────────────────────────────
+    # Goal: ~7 MB / minute of video (~900 kbps total).
+    # Our content is mostly slow-motion stills, so libx264 with tune=stillimage
+    # at CRF 28 yields ~600–800 kbps natively and looks great. We use libx264
+    # (not VideoToolbox) because VT can't hit these low bitrates cleanly and
+    # the visible quality at CRF 28 stillimage is materially better.
     args += [
         "-map", "0:v:0", "-map", "[aout]",
-        "-c:v", "h264_videotoolbox",
-        "-b:v", "8M",
+        "-c:v", "libx264",
+        "-preset", "slow",
+        "-crf", "28",
+        "-tune", "stillimage",
         "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
+        "-c:a", "aac", "-b:a", "96k", "-ar", "44100", "-ac", "2",
         "-movflags", "+faststart",
         "-shortest",
         str(final_mp4),
     ]
 
-    log.info("muxing -> final.mp4")
+    log.info("muxing -> final.mp4 (libx264 crf28 tune=stillimage, target ~7 MB/min)")
     rc, stderr = await _run_ff(args)
     if rc != 0:
-        msg = stderr.decode(errors="replace")
-        if "h264_videotoolbox" in msg or "Encoder" in msg:
-            log.warning("h264_videotoolbox unavailable, retrying with libx264")
-            args_fallback = [a if a != "h264_videotoolbox" else "libx264" for a in args]
-            idx_b = args_fallback.index("-b:v")
-            args_fallback[idx_b:idx_b+2] = ["-crf", "20", "-preset", "fast"]
-            rc, stderr = await _run_ff(args_fallback)
-        if rc != 0:
-            raise RuntimeError(
-                f"ffmpeg mux failed (rc={rc}):\n{stderr.decode(errors='replace')[-2000:]}"
-            )
+        raise RuntimeError(
+            f"ffmpeg mux failed (rc={rc}):\n{stderr.decode(errors='replace')[-2000:]}"
+        )
 
     srt_path = out_dir / "subtitles.srt"
     chap_path = out_dir / "chapter_markers.txt"

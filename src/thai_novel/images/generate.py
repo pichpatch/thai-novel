@@ -37,21 +37,41 @@ def _get_diffusers_pipeline(models_dir: Path):
     except ImportError:
         return None
 
-    if not torch.backends.mps.is_available():
+    if torch.backends.mps.is_available():
+        device = "mps"
+        dtype = torch.float16
+    else:
         log.warning("torch.MPS not available — falling back to CPU (will be slow)")
         device = "cpu"
         dtype = torch.float32
-    else:
-        device = "mps"
-        dtype = torch.float16  # MPS handles fp16 well for SDXL Turbo
 
+    # Keep all HF weights inside the project (./models/diffusers-hf/)
+    models_dir.mkdir(parents=True, exist_ok=True)
     os.environ["HF_HOME"] = str(models_dir / "diffusers-hf")
-    log.info("loading sdxl-turbo (first time may download ~6.5 GB)...")
-    _pipeline = AutoPipelineForText2Image.from_pretrained(
-        "stabilityai/sdxl-turbo",
-        torch_dtype=dtype,
-        variant="fp16" if dtype == torch.float16 else None,
-    ).to(device)
+    os.environ.setdefault("TRANSFORMERS_OFFLINE", "0")
+
+    log.info("loading sdxl-turbo (first time downloads ~6.5 GB; cached at ./models/)")
+    # Try fp16 variant first (smaller download). Fall back to default if not present.
+    try:
+        pipe = AutoPipelineForText2Image.from_pretrained(
+            "stabilityai/sdxl-turbo",
+            torch_dtype=dtype,
+            variant="fp16",
+            use_safetensors=True,
+        )
+    except Exception as e:
+        log.warning(f"fp16 variant load failed ({e}); trying default precision")
+        pipe = AutoPipelineForText2Image.from_pretrained(
+            "stabilityai/sdxl-turbo",
+            torch_dtype=dtype,
+            use_safetensors=True,
+        )
+    pipe = pipe.to(device)
+    # SDXL Turbo benefits from disabling the safety checker (it can produce
+    # false positives on stylized anime art). Comment out if you prefer safety.
+    if hasattr(pipe, "safety_checker"):
+        pipe.safety_checker = None
+    _pipeline = pipe
     return _pipeline
 
 
@@ -143,15 +163,22 @@ def generate_image(
 
     import torch
 
-    generator = torch.Generator(device="mps").manual_seed(seed) if seed else None
+    # SDXL Turbo requires guidance_scale=0.0 (it's the trained value for ADD).
+    # The spec's `guidance` field is honored for SD-XL base, but for sdxl-turbo
+    # we force 0.0 to avoid the "too noisy / muddy" output that 1.5+ produces.
+    effective_guidance = 0.0 if image_cfg.engine == "sdxl-turbo" else image_cfg.guidance
+
+    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    generator = torch.Generator(device=device).manual_seed(seed) if seed else None
     image = pipeline(
         prompt=full_prompt,
         negative_prompt=style.negative_prompt,
         num_inference_steps=image_cfg.steps,
-        guidance_scale=image_cfg.guidance,
+        guidance_scale=effective_guidance,
         width=image_cfg.gen_width,
         height=image_cfg.gen_height,
         generator=generator,
     ).images[0]
     image.save(out_path, "PNG", optimize=True)
+    log.info(f"generated {image_cfg.gen_width}x{image_cfg.gen_height} -> {out_path.name}")
     return out_path, key
