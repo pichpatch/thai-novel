@@ -37,13 +37,6 @@ if [[ ! -x "$VENV/bin/thai-novel" ]]; then
   "$VENV/bin/pip" install --quiet -e .
 fi
 
-# ── 2. First-run Node deps (one-time, ~1 minute) ────────────────────────────
-if [[ ! -d "node_modules/remotion" ]]; then
-  command -v npm >/dev/null 2>&1 || die "need Node 22+. Install with: brew install node"
-  say "first run: installing Remotion (one-time, ~1 minute)"
-  npm install --silent
-fi
-
-# ── 3. Run the full pipeline. exec replaces the bash process with python,
+# ── 2. Run the full pipeline. exec replaces the bash process with python,
 #       so when python exits, the whole ./generate call exits cleanly.
 exec "$VENV/bin/thai-novel" render "$@"

@@ -30,14 +30,13 @@ $EDITOR in/example.json
 That's it. `./generate` does everything:
 
 1. On first run, creates `./.venv` and installs Python deps (~30s).
-2. On first run, installs `node_modules/` for Remotion (~1 min).
-3. Synthesizes narration via edge-tts.
-4. Resolves / generates visual anchors.
-5. Renders the video via Remotion (3 parallel workers).
-6. Muxes music + ambience + loudnorm via ffmpeg.
-7. Exits cleanly. Your shell `PATH` is untouched.
+2. Synthesizes narration via edge-tts (cached per sentence).
+3. Resolves / generates visual anchors (SDXL Turbo, cached per prompt+seed).
+4. Composes the video via ffmpeg (cards → segments → concat, 4 parallel).
+5. Muxes music + ambience + loudnorm via ffmpeg.
+6. Exits cleanly. Your shell `PATH` is untouched.
 
-You get `./novels/<id>/output/final.mp4` when it's done.
+You get `./novels/<id>/output/final.mp4` when it's done — typically **2–3 minutes** end-to-end for a 9-minute episode (warm cache), **4–5 minutes** cold.
 
 ### Batch mode — multiple JSONs at once
 
@@ -84,23 +83,25 @@ your shell. When the script exits, there's nothing to clean up.
 
 ## How it works
 
-Three independent artifact streams converge in Remotion:
+Pure-Python pipeline — no Node, no Chrome, no JavaScript runtime:
 
 ```
-JSON ─┬─► narration stream   (edge-tts WAVs + Whisper alignment)
+JSON ─┬─► narration stream   (edge-tts WAVs, parallel, content-cached)
       ├─► visual stream      (≤15 PNGs from library + SDXL Turbo @ 1024×576)
-      └─► timeline stream    (Remotion plan: anchors, motions, subs, cues)
+      ├─► cards stream       (PIL pre-renders logo splash, title cards, end card)
+      └─► timeline stream    (plan: segments with image + audio + duration)
                              │
                              ▼
-                       Remotion render (per-chapter, 3 parallel max)
+                   ffmpeg segment build (4 parallel)
                              │
                              ▼
-                       ffmpeg mux + H.264 VideoToolbox  →  final.mp4 (1920×1080)
+                   stream-copy concat -> raw.mp4
+                             │
+                             ▼
+                   ffmpeg mux (music + ambience + loudnorm) -> final.mp4
 ```
 
-Everything is **content-addressable cached**. Identical inputs → identical hash → instant cache hit. Editing one paragraph re-synthesizes one sentence, re-aligns one block, re-renders one chapter chunk.
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design.
+Everything is **content-addressable cached**. Identical inputs → identical hash → instant cache hit. Editing one paragraph re-synthesizes one sentence, rebuilds one segment, restitches.
 
 ---
 
@@ -182,11 +183,11 @@ The `<id>` argument is optional when exactly one `.json` is in `./in/`. To keep 
 
 - **macOS** on Apple Silicon (M1 or newer; M2 Pro 32 GB is the design target)
 - **Python ≥ 3.11** (`brew install python@3.13` if missing)
-- **Node ≥ 22** (`brew install node`)
-- **FFmpeg** with VideoToolbox (`brew install ffmpeg` — homebrew's build includes it)
-- **~10 GB free disk** for model weights + cache
+- **FFmpeg** (`brew install ffmpeg`)
+- A **Thai-capable font** — macOS ships several (Ayuthaya, Thonburi, Sukhothai); auto-detected
+- **~10 GB free disk** for SDXL Turbo weights + cache
 
-Run `./novel doctor` to verify everything.
+Run `./novel doctor` to verify everything. No Node, no Chrome, no npm.
 
 ---
 

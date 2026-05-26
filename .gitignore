@@ -12,12 +12,6 @@ __pycache__/
 build/
 dist/
 
-# ─── Node / Remotion ────────────────────────────────────────────────────────
-node_modules/
-remotion/.cache/
-.parcel-cache/
-.next/
-
 # ─── Caches (content-addressable; safe to delete anytime) ───────────────────
 cache/
 

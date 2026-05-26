@@ -7,9 +7,10 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..hashing import image_key
 from ..spec import Episode, VisualAnchor
 from .generate import generate_image
-from .library import promote, resolve as resolve_lib
+from .library import get_metadata, promote, resolve as resolve_lib
 from .upscale import upscale_to_1080p
 
 log = logging.getLogger("thai_novel.images")
@@ -68,6 +69,49 @@ def resolve_anchor(
         )
 
     assert anchor.prompt is not None
+
+    # Compute the content-hash key for what this anchor *would* produce now,
+    # given the current spec (prompt + style + seed + size + engine). This is
+    # the source of truth for "did the inputs change since last promotion?"
+    full_prompt = (episode.visual_style.base_prompt + " " + anchor.prompt).strip()
+    current_key = image_key(
+        prompt=full_prompt,
+        negative_prompt=episode.visual_style.negative_prompt,
+        style_base=episode.visual_style.base_prompt,
+        seed=episode.image_generation.seed or 0,
+        steps=episode.image_generation.steps,
+        guidance=episode.image_generation.guidance,
+        width=episode.image_generation.gen_width,
+        height=episode.image_generation.gen_height,
+        engine=episode.image_generation.engine,
+    )
+
+    # ── Smart library short-circuit ─────────────────────────────────────────
+    # Reuse a promoted library file ONLY when the spec hasn't changed since
+    # the file was generated. If the prompt/seed/size/engine changed, the
+    # library copy is stale → regenerate.
+    if anchor.save_to_library_as and not force:
+        lib_ref = f"library://backgrounds/{anchor.save_to_library_as}"
+        existing = resolve_lib(lib_ref, library_root)
+        if existing is not None:
+            meta = get_metadata(lib_ref, library_root) or {}
+            stored_key = meta.get("image_key")
+            if stored_key == current_key:
+                log.info(
+                    f"library hit: {anchor.save_to_library_as} (inputs unchanged)"
+                )
+                out = upscaled_dir / f"{anchor_id.replace('/', '__')}.png"
+                upscale_to_1080p(existing, out, method=episode.image_generation.upscaler)
+                return ResolvedAnchor(
+                    anchor_id=anchor_id, src_kind="library",
+                    image_path_1080p=out, gen_cache_path=existing,
+                )
+            else:
+                reason = "no metadata" if not stored_key else "prompt/seed/style changed"
+                log.info(
+                    f"library miss: {anchor.save_to_library_as} ({reason}) — regenerating"
+                )
+
     gen_path, _key = generate_image(
         prompt=anchor.prompt,
         style=episode.visual_style,
@@ -88,6 +132,7 @@ def resolve_anchor(
                 "style_base": episode.visual_style.base_prompt,
                 "seed": episode.image_generation.seed,
                 "from_episode": episode.project.id,
+                "image_key": current_key,  # used by the smart short-circuit on next run
             },
         )
         src_kind = "promoted"

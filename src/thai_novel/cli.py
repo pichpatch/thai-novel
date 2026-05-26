@@ -72,7 +72,13 @@ def _resolve_inputs(id_or_path: str | None) -> list[Path]:
     Inactive specs are prefixed with `_` (e.g. `_old-draft.json`) to be ignored.
     """
     if id_or_path is None:
-        candidates = sorted(p for p in IN_DIR.glob("*.json") if not p.name.startswith("_"))
+        # Auto-skip:
+        #   - underscore-prefixed (archived/disabled specs)
+        #   - *.example.json (template files — by convention)
+        candidates = sorted(
+            p for p in IN_DIR.glob("*.json")
+            if not p.name.startswith("_") and not p.stem.endswith(".example")
+        )
         if not candidates:
             err_console.print(
                 "[red]ERROR:[/red] no .json files in ./in/.\n"
@@ -168,14 +174,6 @@ def doctor() -> None:
         f"found {py.major}.{py.minor}.{py.micro}",
     ))
 
-    node = shutil.which("node")
-    if node:
-        ver = subprocess.run([node, "--version"], capture_output=True, text=True).stdout.strip()
-        major = int(ver.lstrip("v").split(".")[0])
-        checks.append(("Node ≥ 22", major >= 22, ver))
-    else:
-        checks.append(("Node ≥ 22", False, "not found — install with `brew install node`"))
-
     ff = shutil.which("ffmpeg")
     if ff:
         out = subprocess.run(
@@ -190,15 +188,15 @@ def doctor() -> None:
     else:
         checks.append(("ffmpeg", False, "not found — install with `brew install ffmpeg`"))
 
-    # node_modules for Remotion
-    nm = PROJECT_ROOT / "node_modules" / "remotion"
-    checks.append((
-        "remotion installed",
-        nm.is_dir(),
-        "ok" if nm.is_dir() else "run `npm install` in the project root",
-    ))
+    # Thai-capable font (for card rendering via PIL)
+    try:
+        from .compose.cards import find_font
+        font = find_font(LIBRARY_DIR)
+        checks.append(("Thai font", True, font.replace(str(Path.home()), "~")))
+    except Exception as e:
+        checks.append(("Thai font", False, str(e)))
 
-    for d in ("in", "novels", "library", "remotion", "src/thai_novel"):
+    for d in ("in", "novels", "library", "src/thai_novel"):
         p = PROJECT_ROOT / d
         checks.append((f"./{d}/", p.is_dir(), "ok" if p.is_dir() else "missing"))
 
@@ -356,39 +354,7 @@ def images(
 # ─── Phase D: preview ────────────────────────────────────────────────────────
 
 
-@app.command()
-def preview(
-    id_or_path: Annotated[str | None, typer.Argument()] = None,
-) -> None:
-    """Launch the Remotion preview studio on :3000 with the latest compiled timeline."""
-    pairs = _load_all_episodes(id_or_path)
-    if len(pairs) > 1:
-        err_console.print(
-            "[red]ERROR:[/red] preview takes a single episode; pass an id explicitly."
-        )
-        raise typer.Exit(1)
-    ep = pairs[0][1]
-    timeline = PROJECT_ROOT / "cache" / ep.project.id / "timeline.json"
-    if not timeline.exists():
-        err_console.print(
-            f"[red]ERROR:[/red] no timeline at {timeline.relative_to(PROJECT_ROOT)}.\n"
-            "Run [bold]./novel render[/bold] first (or just the build steps:\n"
-            "  ./novel narrate && ./novel images)."
-        )
-        raise typer.Exit(1)
-
-    # Ensure symlinks exist so staticFile() works
-    from .remotion import _link_static
-    _link_static(PROJECT_ROOT)
-
-    console.print(f"[cyan]Opening Remotion studio[/cyan] with timeline: {timeline.relative_to(PROJECT_ROOT)}")
-    subprocess.run(
-        ["npx", "remotion", "studio", "remotion/src/index.ts", "--props", str(timeline)],
-        cwd=str(PROJECT_ROOT),
-    )
-
-
-# ─── Phase D-E: render ───────────────────────────────────────────────────────
+# ─── Render (Phases D + E) ──────────────────────────────────────────────────
 
 
 @app.command()
@@ -416,7 +382,7 @@ def render(
     from .narration import narrate_episode
     from .images import resolve_episode
     from .timeline import compile_timeline
-    from .remotion import render_video
+    from .compose import compose_video
     from .encode import finalize
 
     # ── Queue summary ────────────────────────────────────────────────────────
@@ -467,9 +433,9 @@ def render(
             timeline = json.loads(timeline_path.read_text(encoding="utf-8"))
             console.print(f"  total duration: [cyan]{timeline['total_duration_sec']:.1f}s[/cyan]")
 
-            console.print("\n[bold]Stage 4/5: remotion render (2–5 min typical)[/bold]")
+            console.print("\n[bold]Stage 4/5: compose video (pure ffmpeg, ~30–90s)[/bold]")
             raw_mp4 = work_dir / "raw.mp4"
-            asyncio.run(render_video(timeline_path, raw_mp4, PROJECT_ROOT, concurrency=3))
+            asyncio.run(compose_video(timeline_path, raw_mp4, PROJECT_ROOT))
 
             console.print("\n[bold]Stage 5/5: final mux[/bold]")
             artifacts = asyncio.run(finalize(raw_mp4, timeline, PROJECT_ROOT, out_dir))

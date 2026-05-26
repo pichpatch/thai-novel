@@ -3,6 +3,26 @@
 Drop one or more `.json` files in this folder. Then from the project root
 run `./generate` and you'll get `./novels/<id>/output/final.mp4` for each.
 
+## Two reference files (auto-skipped by `./generate`)
+
+| File | What |
+| --- | --- |
+| `example.json` | A complete working episode (ร้านกาแฟของคุณปีศาจ ตอน 1). Use it to see what a finished spec looks like. |
+| `template.example.json` | A template with **inline `_doc` comments** explaining every field, tagged by tier: `FIXED` (set once per channel) vs `PER_SERIES` (set once per series) vs `PER_EPISODE` (changes each episode). Copy this when authoring a new episode. |
+
+Both are skipped by auto-pick (the CLI ignores `*.example.json` and any file
+starting with `_`). To work from the template:
+
+```bash
+cp in/template.example.json in/02_devil-cafe-ep02.json
+$EDITOR in/02_devil-cafe-ep02.json   # fill in PER_EPISODE fields
+./generate
+```
+
+The `_doc` / `_note` / `_README` / `_characters_doc` fields in the template
+are JSON comments — Pydantic silently ignores any key starting with `_`,
+so you can leave them in your edited copy or strip them out, either way works.
+
 ## Two ways to batch many episodes
 
 **Multiple files** — drop several `.json` files into `./in/`. They render

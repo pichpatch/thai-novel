@@ -2,13 +2,12 @@
   {
     "project": {
       "id": "devil-cafe-ep01",
-      "title": "ร้านกาแฟของคุณปีศาจ — ตอนที่ 1: คืนฝนตกที่ไม่ได้ตั้งใจ",
+      "title": "คืนฝนตกที่ไม่ได้ตั้งใจ",
       "series": "ร้านกาแฟของคุณปีศาจ",
       "episode": 1,
       "language": "th",
       "theme": "romantic comedy fantasy — cozy slow-burn",
-      "resolution": "1920x1080",
-      "fps": 30,
+      "resolution": "1280x720",
       "target_duration_min": 32
     },
 
@@ -98,7 +97,7 @@
 
     "intro": {
       "show": true,
-      "channel_name": "THAI Novel",
+      "channel_name": "TH AI Novel",
       "welcome_duration_sec": 5,
       "title_card_duration_sec": 4.5,
       "background_music_ref": "library://music/intro_theme",
@@ -114,7 +113,7 @@
         "visual_anchor": {
           "prompt": "small cozy independent cafe at night in old Bangkok soi, rain streaming down the front window, warm amber glow from inside, neon-orange sign reading the cafe name in soft Thai script, wet glistening pavement, single figure with umbrella outside, atmospheric and cinematic, the kind of place you find by accident and never forget",
           "save_to_library_as": "cafe_rainy_night_exterior",
-          "motion": "slow_zoom_in",
+          "motion": "static",
           "color_grade": "warm_cozy"
         },
         "narration_blocks": [
@@ -143,7 +142,7 @@
         "visual_anchor": {
           "prompt": "interior of small cozy Thai cafe at night, warm amber lighting from three pendant lamps, wooden counter with vintage espresso machine, bookshelves along walls full of secondhand books, four small wooden tables, rain streaming down the front window in the background, single young woman behind counter with warm hazel eyes and long wavy brown hair wearing cream cardigan and beige apron, soft welcoming expression, painterly and cinematic, shallow depth of field",
           "save_to_library_as": "cafe_interior_lalin_counter",
-          "motion": "parallax_depth",
+          "motion": "static",
           "color_grade": "warm_cozy"
         },
         "narration_blocks": [
@@ -172,7 +171,7 @@
         "visual_anchor": {
           "prompt": "close-up of hands placing a warm ceramic coffee cup with crema on a wooden cafe table, steam rising softly, raindrops on the window beyond, warm amber light from above, beautifully shot food photography in cinematic anime style, painterly, shallow depth of field",
           "save_to_library_as": "coffee_cup_close_warm",
-          "motion": "slow_zoom_out",
+          "motion": "static",
           "color_grade": "warm_cozy"
         },
         "narration_blocks": [
@@ -193,7 +192,7 @@
         "title_card_duration_sec": 4,
         "visual_anchor": {
           "ref": "library://backgrounds/cafe_rainy_night_exterior",
-          "motion": "subtle_handheld",
+          "motion": "static",
           "color_grade": "warm_cozy"
         },
         "narration_blocks": [
@@ -215,7 +214,7 @@
         "visual_anchor": {
           "prompt": "young Thai man with messy black hair walking out of small cozy cafe at night, holding small umbrella, lighter rain than before, looking back over his shoulder with first real smile in weeks, warm amber glow from cafe window behind him, wet pavement reflecting lights, cinematic anime style, painterly, hopeful and quiet ending shot",
           "save_to_library_as": "nathi_leaving_cafe_night",
-          "motion": "slow_zoom_out",
+          "motion": "static",
           "color_grade": "warm_cozy"
         },
         "narration_blocks": [

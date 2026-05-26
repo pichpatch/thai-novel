@@ -74,6 +74,27 @@ def require(ref: str, library_root: Path) -> Path:
     return p
 
 
+def get_metadata(ref: str, library_root: Path) -> dict | None:
+    """
+    Return the _index.json metadata entry for a library ref, or None.
+
+    The metadata is written by promote() and contains at minimum:
+      - file: the on-disk filename
+      - image_key: content-hash of (prompt + style + seed + size + engine ...)
+                   used to detect when a promoted image is now stale.
+    """
+    kind, name = parse_ref(ref)
+    folder, _exts = KIND_FOLDERS[kind]
+    index_path = library_root / folder / "_index.json"
+    if not index_path.exists():
+        return None
+    try:
+        idx = json.loads(index_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    return idx.get(name)
+
+
 def promote(
     source_image: Path,
     name: str,
