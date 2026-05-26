@@ -25,6 +25,8 @@ novels/*/_work/
 # ─── Legacy artifacts (still present at the project root) ───────────────────
 out/
 
+in/
+
 # ─── User-supplied media (kept locally, not committed; READMEs stay) ────────
 music/*.mp3
 music/*.m4a
@@ -39,9 +41,6 @@ cover/*.jpeg
 cover/*.webp
 !cover/README.md
 !cover/default.png
-
-intro/_generated_*.*
-intro/cache/
 
 # ─── Library audio (loops, ambience) — large binaries kept local ────────────
 library/audio/**/*.mp3

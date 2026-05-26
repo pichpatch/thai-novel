@@ -30,17 +30,15 @@
         "language":            "FIXED       | always 'th'",
         "theme":               "PER_SERIES  | OPTIONAL | for your own reference; not used by the pipeline",
         "resolution":          "FIXED       | '1280x720' is the sweet spot (~14 MB / 9 min). '1920x1080' is 3x bigger and ~30s slower",
-        "fps":                 "FIXED       | 24 is fine for static content. 30 is fine too but ~25% slower",
         "target_duration_min": "PER_EPISODE | OPTIONAL | advisory only — actual duration comes from real audio length"
       },
       "id":       "devil-cafe-ep_xx",
-      "title":    "ตอนที่ XX: <ชื่อตอน>",
+      "title":    "<ชื่อตอน>",
       "series":   "ร้านกาแฟของคุณปีศาจ",
       "episode":  2,
       "language": "th",
       "theme":    "romantic comedy fantasy — cozy slow-burn",
       "resolution": "1280x720",
-      "fps": 24,
       "target_duration_min": 30
     },
 
@@ -282,7 +280,7 @@
       ],
       "show":               true,
       "duration_sec":       8,
-      "next_episode_title": "ตอนที่ XX+1: <ชื่อตอนถัดไป>",
+      "next_episode_title": "<ชื่อตอนถัดไป>",
       "message":            "ขอบคุณที่ฟังจนจบ — ติดตามตอนต่อไปได้ในสัปดาห์หน้า"
     }
   }

@@ -86,7 +86,6 @@ write the whole spec.
   "language": "th",
   "theme": "romantic comedy fantasy",
   "resolution": "1920x1080",
-  "fps": 30,
   "target_duration_min": 32          // advisory; actual = sum of audio
 }
 ```
