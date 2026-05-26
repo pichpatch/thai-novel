@@ -12,6 +12,8 @@ __pycache__/
 build/
 dist/
 
+poster
+
 # ─── Caches (content-addressable; safe to delete anytime) ───────────────────
 cache/
 
