@@ -4,10 +4,9 @@
 #   ./novel doctor                  # check env, fetch what's missing
 #   ./novel new <id>                # scaffold in/<id>.json from in/example.json
 #   ./novel validate [<id>]         # schema check + pacing warnings
-#   ./novel narrate [<id>]          # synthesize narration WAVs       (Phase B)
-#   ./novel images [<id>] [--force] # resolve/generate visual anchors (Phase C)
-#   ./novel preview [<id>]          # remotion studio on :3000        (Phase D)
-#   ./novel render [<id>]           # build the final MP4             (Phase D-E)
+#   ./novel narrate [<id>]          # synthesize narration WAVs only
+#   ./novel images [<id>] [--force] # resolve/generate visual anchors only
+#   ./novel render [<id>]           # build the final MP4
 #
 # First run auto-creates ./.venv (one-time, ~30s). Nothing touches your shell config.
 # ----------------------------------------------------------------------------

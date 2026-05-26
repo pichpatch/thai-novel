@@ -124,16 +124,20 @@ episodes 4+ should mostly reuse it.
 
 ---
 
-## Pipeline phases (so you know what's available right now)
+## CLI commands (all shipping today)
 
-- **Phase A (current):** `./novel doctor`, `./novel validate`, `./novel new`
-- **Phase B:** `./novel narrate` — edge-tts + Whisper-MLX alignment
-- **Phase C:** `./novel images` — SDXL Turbo + library + upscale
-- **Phase D:** `./novel preview`, motion presets, subtitle component
-- **Phase E:** `./novel render` — full pipeline, ffmpeg mux
+- `./generate [<id>]` — one-shot: full pipeline (narrate → images → compose → mux)
+- `./novel doctor` — env check (Python, ffmpeg+VideoToolbox, Thai font)
+- `./novel new <id>` — scaffold `in/<id>.json` from `in/example.json`
+- `./novel validate [<id>]` — schema check + pacing warnings
+- `./novel narrate [<id>]` — Phase B only (edge-tts → WAVs)
+- `./novel images [<id>] [--force]` — Phase C only (SDXL Turbo + library + upscale)
+- `./novel render [<id>]` — same as `./generate` but assumes venv is ready
+- `./clean` — wipe caches + outputs; preserves library, models, content
 
-If the user asks for a feature in Phase B–E, point them at this list and
-ask which phase to build next.
+No live preview server — render is fast enough (~1–2 min) that the loop is
+"edit JSON → `./generate` → play MP4". For just narration, run `./novel narrate`
+and listen to `cache/<id>/blocks/*.wav` directly.
 
 ---
 

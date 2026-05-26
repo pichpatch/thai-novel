@@ -351,10 +351,7 @@ def images(
         console.print(f"[green]✓[/green] {len(results)} anchors ({bits})")
 
 
-# ─── Phase D: preview ────────────────────────────────────────────────────────
-
-
-# ─── Render (Phases D + E) ──────────────────────────────────────────────────
+# ─── Render (full pipeline) ──────────────────────────────────────────────────
 
 
 @app.command()
@@ -366,7 +363,7 @@ def render(
     stop_on_error: Annotated[bool, typer.Option(help="Stop the batch on the first failure.")] = False,
 ) -> None:
     """
-    Build every episode end-to-end: narrate → images → timeline → Remotion → mux.
+    Build every episode end-to-end: narrate → images → timeline → compose → mux.
 
     BATCH MODE: with no argument, processes EVERY .json in ./in/ sequentially
     (one episode at a time, since each render already saturates 3 workers).

@@ -4,6 +4,7 @@
   "_referenced_by_example": {
     "rain_soft":    "default + romantic moods",
     "cafe_quiet":   "cozy + funny moods (low cafe murmur, no music)",
-    "rain_window":  "melancholy mood (rain hitting a window)"
+    "rain_window":  "melancholy mood (rain hitting a window)",
+    "people_murmuring":  "melancholy mood (rain hitting a window)"
   }
 }
