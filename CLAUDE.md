@@ -1,152 +1,415 @@
-# Notes for Claude / Cowork: authoring thai-novel episodes
+# CLAUDE.md — thai-novel project context
 
-This file is read by any AI assistant working on this project. The rules below
-keep the pipeline producing cinematic, narration-first episodes that match the
-project's romantic-comedy slow-burn voice.
+Read by any AI assistant working on this project. Read top to bottom on session start; it covers what the project is, the current architecture, the decisions you must not undo, and the authoring rules.
 
-## What this project IS
-
-- A **cinematic Thai audiobook pipeline**, not an animated anime pipeline.
-- Output is 30–40 minute YouTube episodes at 1920×1080.
-- Narration and atmosphere are the product. Visuals are **cinematic anchors**.
-- Tone: cozy, romantic, funny, slow-paced, emotionally observant.
-
-## What this project IS NOT
-
-- Not action-heavy.
-- Not visually busy. A single image can hold the screen for 2–5 minutes.
-- Not plot-driven. Relationship progression matters more than plot beats.
-- Not English-first. All narration is Thai. Image prompts are English (for SDXL).
+> **TL;DR.** Cinematic Thai audiobook pipeline. JSON spec in `./in/` → `./generate` → MP4 at `novels/<id>/output/final.mp4`. Pure Python + ffmpeg, no Node, no Chrome. Edge-tts for narration, SDXL Turbo via diffusers+MPS for images, libx264 for encoding. Default render: 1280×720 @ 24 fps, ~14 MB per 9-min episode, ~3 min cold render on M2 Pro 32 GB.
 
 ---
 
-## The hard rules (do not break these)
+## 1. What this project IS
 
-1. **Never edit generated files directly.** `index.html`, `narration.txt`,
-   compiled timelines, cached WAVs — they're all regenerated. Edit `in/<id>.json`.
+- A **cinematic Thai audiobook pipeline**, not animation.
+- Output: 30–40 min YouTube-bound MP4s, default 1280×720 @ 24 fps.
+- Narration + atmosphere are the product. Visuals are **cinematic anchors** that hold the screen for 2–5 minutes each.
+- Target: **MacBook Pro Apple Silicon, M2 Pro 32 GB**. Everything runs locally.
 
-2. **One active JSON per pipeline run.** The CLI auto-picks the single non-`_`-prefixed
-   `.json` in `./in/`. To keep older specs around, prefix them with `_`.
+## What this project is NOT
 
-3. **Narration blocks are 1500–3000 Thai characters.** Shorter = choppy pacing.
-   Longer = audience attention drops. The `./novel validate` command warns on
-   both extremes.
-
-4. **One visual anchor per chapter by default.** Per-block `anchor_override`
-   exists for romantic peaks or comedic close-ups but should be rare. If a
-   chapter has more than 2 anchors, the pacing has probably shifted into
-   "scene list" territory — pull back.
-
-5. **Prefer `ref: "library://..."` over `prompt`.** Library reuse is the
-   success metric. By episode 5 you should be generating ≤3 new anchors per
-   episode. If you find yourself writing the same `prompt` twice, promote it
-   to the library with `save_to_library_as`.
-
-6. **Total generated images per episode: 5–15.** Anything more and the
-   render budget and the art-style consistency suffer.
-
-7. **Image prompts are English; narration is Thai.** SDXL/CLIP-derived models
-   handle English prompts much better. Don't mix.
+- Not a slideshow tool.
+- Not action-heavy or visually busy.
+- Not English-first. Narration is Thai. Image prompts are English (SDXL/CLIP handle English much better).
+- Not Cloud-based. Not Node/Remotion-based (was, no longer — see §3).
 
 ---
 
-## Mood is the central knob
+## 2. Architecture — 5 stages, pure Python + ffmpeg
 
-Every `narration_block` has a `mood`. Mood drives:
-- TTS pause length and rate (via `tts.mood_pauses`)
-- Music selection (via `audio.music_bed.by_mood`)
-- Ambience selection
-- Subtitle reveal speed
-- Color grading
+```
+JSON spec
+   │
+   ├──► Stage 1  Narrate         edge-tts, 3 parallel, content-cached per sentence
+   │              pythainlp segmentation + mood-aware pauses + loudnorm
+   │              → cache/<id>/blocks/*.wav
+   │
+   ├──► Stage 2  Images          SDXL Turbo via diffusers+MPS (~5s/image on M2 Pro)
+   │              Smart library short-circuit: same prompt+seed+style → reuse
+   │              → cache/<id>/anchors/*.png  (and promotions to library/)
+   │
+   ├──► Stage 3  Compile timeline    Python dataframe-y shaping
+   │              → cache/<id>/timeline.json
+   │
+   ├──► Stage 4  Compose video       Pure ffmpeg, NO Chrome, NO JavaScript
+   │              PIL pre-renders cards (logo, episode title, chapter cards, end card)
+   │              4 parallel ffmpeg segment builds, content-addressed cache
+   │              Stream-copy concat → raw.mp4
+   │
+   └──► Stage 5  Final mux           ffmpeg adds music+ambience+sidechain+loudnorm
+                  libx264 crf 28 tune=stillimage (not VideoToolbox — see §3)
+                  → novels/<id>/output/final.mp4
+```
 
-Available moods (defined in `src/thai_novel/spec.py`):
+Stages 1–3 are content-addressable cached. Edit one sentence → only that sentence re-synthesizes, only the affected segment rebuilds, ~40s total turnaround.
 
-| Mood | When to use | Pace feel |
+---
+
+## 3. Decisions you must NOT undo (real history, real reasons)
+
+These come from rounds of "we tried it and learned":
+
+| Decision | Why it sticks |
+| --- | --- |
+| **No Remotion, no Node, no Chrome** | Was using Remotion 4.x for compositing. Removed because: (a) Chrome rendering was 10× slower than ffmpeg for static images, (b) `calculateMetadata` was unreliable across point releases, (c) `node_modules/` added 700 MB. Pure ffmpeg gets us to ~3 min renders. `package.json`, `tsconfig.json`, `remotion.config.ts`, `remotion/`, `scripts/render.mjs` — all deleted. **Don't add them back.** |
+| **libx264 crf 28 tune=stillimage, NOT VideoToolbox** | VideoToolbox is 3× faster but produces visibly muddy output at the bitrates we target (~7 MB/min). libx264 with `tune=stillimage` is purpose-built for slow-motion content and looks materially better. |
+| **Default resolution: 1280×720 @ 24 fps** | 1080p30 produced 400+ MB files and added ~30s of render. 720p24 with static frames lands at ~14 MB for 9 minutes. Bump to 1920×1080 in JSON if needed. |
+| **All chapter images: `motion: "static"`** | The composer (Stage 4) **does not implement motion**. The field is kept in the schema for future, but currently every preset (`slow_zoom_in`, etc.) renders identically to `static`. Setting motion has zero render effect today — just keeps the spec future-proof. |
+| **Subtitles default OFF** | `subtitles.enabled = false` in schema default + example. Overlay text crowded the cinematic frames. SRT is still exported next to `final.mp4` (upload as YT captions). |
+| **Logo welcome card: full-screen edge-to-edge** | `render_logo_splash` uses cover semantics — scales the logo to fill the entire 720×1280 frame. The user's 1672×941 logo is 16:9, so it fills cleanly with no crop. No gradient backdrop, no welcome text. |
+| **Concurrency = 4 (was 3)** | Static images + 720p drop Chrome-equivalent worker RAM from 5 GB → 3.5 GB. 4 ffmpeg workers × 3.5 GB = 14 GB peak, safe on 32 GB. |
+| **Library is never deleted by `./clean`** | Library backgrounds are real GPU output (~5s each). Treated as user content. `./clean --library` flag was REMOVED; if you really need to drop one: `rm library/visuals/backgrounds/<name>.png` by hand. |
+| **Smart library short-circuit by image_key** | `library/visuals/backgrounds/_index.json` stores the image_key (sha256 of prompt+seed+style+size). On next run, the smart cache only reuses if the key matches; edit the prompt in JSON → it regenerates. |
+| **Auto-normalizer on `load_episodes()`** | Cowork-generated specs sometimes use mood aliases (`melancholic`, `sad`), motion aliases (`slow_pan_left`, `fade_in`), or forget block IDs. The normalizer fixes these silently with INFO logs. See `src/thai_novel/spec.py:_normalize_episode_dict`. |
+| **Default voice: th-TH-PremwadeeNeural** | Cozy Thai female. Rate −10%. Don't change unless the user asks. |
+| **No `./novel preview`** | Removed when Remotion was removed. The render loop is fast enough that "edit JSON → `./generate` → play MP4" works as the preview. For audio-only checks, run `./novel narrate` and listen to `cache/<id>/blocks/*.wav` directly. |
+
+---
+
+## 4. File layout
+
+```
+thai-novel/
+├── novel                          # CLI wrapper (executable bash)
+├── generate                       # shorthand for `./novel render` (executable)
+├── clean                          # cache/output cleanup (executable)
+├── pyproject.toml                 # Python project — see §5
+├── .gitignore                     # cache/, models/, in/, library/visuals/backgrounds/, etc.
+│
+├── in/                            # your JSON specs go here
+│   ├── README.md                  # field-by-field schema reference
+│   ├── template.example.json      # annotated template with FIXED/PER_SERIES/PER_EPISODE _doc tags
+│   └── <your-episode>.json        # what you author
+│
+├── novels/<id>/                   # per-episode outputs (gitignored)
+│   ├── output/
+│   │   ├── final.mp4              # THE FINAL VIDEO
+│   │   ├── subtitles.srt          # for YT manual captions
+│   │   └── chapter_markers.txt    # paste into YT description
+│   └── _work/                     # intermediate raw.mp4 (pre-mux)
+│
+├── library/                       # reusable, user-curated assets (NEVER deleted by ./clean)
+│   ├── visuals/
+│   │   ├── backgrounds/           # SDXL-generated + promoted (_index.json with image_key)
+│   │   ├── characters/            # if you ever generate per-character portraits
+│   │   ├── overlays/              # channel_logo.png lives here
+│   │   └── luts/
+│   ├── audio/
+│   │   ├── music/                 # cozy_piano_01.mp3, intro_theme.mp3, etc.
+│   │   ├── ambience/              # rain_soft.mp3, cafe_quiet.mp3, etc.
+│   │   └── sfx/
+│   └── fonts/                     # optional .ttf/.otf override; macOS defaults work
+│
+├── cache/                         # content-addressed (gitignored; `./clean` wipes)
+│   ├── narration/                 # per-sentence WAVs by hash
+│   ├── images/                    # per-prompt PNGs by hash
+│   └── <episode-id>/
+│       ├── blocks/                # per-block stitched WAVs
+│       ├── anchors/               # upscaled per-chapter PNGs
+│       ├── cards/                 # PIL-rendered cards (logo, title, chapter, end)
+│       ├── segments/              # per-block ffmpeg segments (content-addressed)
+│       ├── timeline.json
+│       └── narration.json
+│
+├── models/                        # SDXL Turbo weights (~6.5 GB, auto-downloaded)
+│   └── diffusers-hf/
+│
+├── src/thai_novel/                # the Python pipeline
+│   ├── cli.py                     # Typer CLI — doctor/validate/new/narrate/images/render
+│   ├── spec.py                    # Pydantic schema + auto-normalizer
+│   ├── hashing.py                 # content-hash helpers (narration_key, image_key)
+│   ├── narration/                 # Stage 1
+│   │   ├── segment.py             # pythainlp Thai sentence segmentation
+│   │   ├── synthesize.py          # edge-tts parallel, sem=3, per-sentence cache
+│   │   ├── stitch.py              # concat + mood pauses + loudnorm
+│   │   └── align.py               # whisper-mlx (optional) or even-distribute fallback
+│   ├── images/                    # Stage 2
+│   │   ├── library.py             # library:// ref resolution + promotion + metadata
+│   │   ├── generate.py            # SDXL Turbo via diffusers+MPS
+│   │   └── upscale.py             # Real-ESRGAN if available, else Lanczos
+│   ├── timeline/                  # Stage 3
+│   │   └── __init__.py            # compile_timeline()
+│   ├── compose/                   # Stage 4 (pure ffmpeg, replaces former remotion/)
+│   │   ├── __init__.py            # compose_video()
+│   │   └── cards.py               # PIL renderers for logo/title/chapter/end cards
+│   └── encode/                    # Stage 5
+│       └── __init__.py            # finalize() — mux + loudnorm + SRT + chapter_markers
+│
+├── .claude/skills/
+│   └── json-transform/
+│       └── SKILL.md               # Project skill: create OR transform Thai stories to JSON
+│
+├── intro/                         # user's pre-existing logo (intro/logo.png)
+├── music/                         # user's pre-existing music
+├── cover/                         # user's pre-existing cover art
+├── voices/                        # legacy Piper TTS .onnx voice models (optional fallback)
+├── manuscripts/                   # user's raw Thai chapter sources (.json or .md)
+├── LICENSE                        # Apache 2.0
+└── README.md                      # complete project README (~250 lines, 11 sections)
+```
+
+---
+
+## 5. CLI reference
+
+The one command 99% of the time:
+
+```bash
+./generate [<id>]                 # full pipeline, batch all in/*.json if no arg
+./generate --skip-narrate         # text unchanged → skip Stage 1
+./generate --skip-images          # images unchanged → skip Stage 2
+```
+
+Sub-commands (`./novel <verb>` — same venv, finer control):
+
+| Verb | What |
+| --- | --- |
+| `./novel doctor` | Check Python ≥ 3.11, ffmpeg + VideoToolbox, Thai font, folder layout |
+| `./novel validate [<id>]` | Schema check + pacing warnings, no render |
+| `./novel new <id>` | Scaffold `in/<id>.json` from `in/template.example.json` |
+| `./novel narrate [<id>]` | Stage 1 only — synthesize WAVs to `cache/<id>/blocks/` |
+| `./novel images [<id>] [--force]` | Stage 2 only — resolve/generate visual anchors |
+| `./novel render [<id>]` | Full pipeline (alias for `./generate`) |
+| `./novel version` | Print version |
+
+Cleanup:
+
+```bash
+./clean              # wipe cache/ + novels/<id>/output/ + novels/<id>/_work/ + remotion/public/
+./clean --models     # also wipe SDXL weights (~6.5 GB redownload)
+./clean --yes        # skip confirmation
+```
+
+**`./clean` NEVER deletes**: `library/`, `models/` (unless `--models`), `.venv/`, `in/`, `manuscripts/`, `intro/`, `music/`, `voices/`, `cover/`.
+
+The CLI auto-skips files in `./in/` whose name:
+- starts with `_` (archived/disabled), e.g. `_old-draft.json`
+- ends with `.example.json` (templates), e.g. `template.example.json`
+
+---
+
+## 6. Schema essentials
+
+The full schema lives in `src/thai_novel/spec.py`. Quick reference:
+
+### Episode (top-level)
+
+```jsonc
+{
+  "project":          { "id", "title", "episode?", "series?", "resolution", "fps", ... },
+  "tts":              { "voice", "rate", "pitch", "mood_pauses", ... },           // FIXED
+  "image_generation": { "engine", "steps", "guidance", "seed", "gen_*", ... },   // FIXED
+  "visual_style":     { "base_prompt", "negative_prompt", "color_grade" },        // FIXED
+  "characters":       { "male_lead": {...}, "female_lead": {...} },               // PER_SERIES
+  "audio":            { "music_bed", "ambience" },                                 // FIXED
+  "subtitles":        { "enabled": false, ... },                                   // FIXED, default off
+  "intro":            { "channel_name", "logo_ref", "background_music_ref" },     // FIXED
+  "chapters":         [ Chapter, Chapter, ... ],                                   // PER_EPISODE — the story
+  "end_card":         { "next_episode_title", "message" }                          // PER_EPISODE
+}
+```
+
+### Chapter
+
+```jsonc
+{
+  "id": "ch_01",
+  "title": "<Thai chapter title>",
+  "show_title_card": true,
+  "title_card_duration_sec": 4,
+  "visual_anchor": {              // ONE per chapter (default)
+    "prompt": "<English SDXL prompt>",
+    "save_to_library_as": "<series>_ep<N>_<slug>",
+    "motion": "static",
+    "color_grade": "warm_cozy"
+  },
+  "narration_blocks": [ NarrationBlock, ... ]
+}
+```
+
+### NarrationBlock
+
+```jsonc
+{
+  "id": "ch01_b1",                // required; auto-normalizer fills if missing
+  "mood": "cozy",                  // strict Literal — see §7
+  "duration_hint_sec": 180,        // advisory; actual = TTS output length
+  "narration": "<Thai prose, 1500–3000 chars>",
+  "subtitle_emphasis": ["นที"],   // only used if subtitles enabled
+  "anchor_override": { ... }       // OPTIONAL per-scene image — use sparingly
+}
+```
+
+### Mood vocabulary (STRICT Pydantic Literal)
+
+`cozy`, `funny`, `romantic`, `playful`, `tense`, `melancholy`.
+
+**Auto-normalizer aliases** (accepted silently; canonical preferred):
+- `melancholic`, `sad` → `melancholy`
+- `happy` → `playful`
+- `calm`, `neutral` → `cozy`
+- `angry`, `scared` → `tense`
+
+### Motion presets (STRICT but ignored)
+
+`slow_zoom_in`, `slow_zoom_out`, `pan_left`, `pan_right`, `parallax_depth`, `subtle_handheld`, `ken_burns_combo`, `static`.
+
+**Auto-normalizer aliases**: `slow_pan_left/right` → `pan_left/right`, `fade_in/out` → `static`, `none/""` → `static`.
+
+The composer (Stage 4) ignores motion in the current build. All chapter images render static. The field is kept for schema future-proofing.
+
+### Color grades
+
+`warm_cozy`, `cool_night`, `golden_hour`, `melancholy_blue`, `playful_pop`, `neutral`. Set once at `visual_style.color_grade`. Per-anchor `color_grade` override allowed.
+
+---
+
+## 7. The hard rules (don't break)
+
+1. **Never edit generated files.** `cache/<id>/timeline.json`, `cache/<id>/blocks/*.wav`, `novels/<id>/output/final.mp4` — all regenerated. Edit `in/<id>.json`.
+
+2. **Narration blocks: 1500–3000 Thai chars.** Shorter = choppy. Longer = retention drops. `./novel validate` warns at <800 or >4000.
+
+3. **One visual anchor per chapter by default.** Per-block `anchor_override` exists for emotional peaks (romantic close-ups, cut-aways to objects, time-of-day shifts) but should be ≤4 per episode total.
+
+4. **Prefer `ref: "library://..."` over fresh `prompt`.** Library reuse is the success metric. By episode 5 you should be generating ≤3 new anchors per episode.
+
+5. **Total unique anchors per episode: 5–15.** More than that and art-style drift + SDXL cost become problems.
+
+6. **Image prompts are English; narration is Thai.** Don't mix.
+
+7. **Series-prefixed `save_to_library_as` slugs.** `shadow-dynasty_ep45_klongtoey_alley_night`, not `cafe`. Prevents collisions across series.
+
+8. **Don't auto-run `./generate`.** The user invokes renders; AI assistants write the JSON.
+
+---
+
+## 8. Authoring rules for Thai romantic-comedy narration
+
+When helping the user write or transform an episode:
+
+- **Describe small physical details.** "เปลือกตาข้างหนึ่งกระตุกเล็กน้อย" beats "เธอประหม่า". Specificity is cozy.
+- **Let comedy be deadpan.** Describe chaos in a calm tone — that contrast is the humor.
+- **Inner thoughts are gold.** What characters notice but don't say is the whole romance.
+- **Awkward pauses are storytelling.** Long sentences with embedded asides read aloud better than choppy short ones in Thai.
+- **Resist resolving things.** A scene that ends with characters *not* admitting their feelings is more romantic than one that does.
+- **Narrator is third-person.** No fourth-wall breaks. Render dialogue as reported speech (`"เขาบอกว่า ..."`).
+
+The voice and rate are tuned for this tone — adapt the writing, don't change the TTS settings to fit a different tone.
+
+---
+
+## 9. Library system + smart caching
+
+| Layer | What | When invalidated |
 | --- | --- | --- |
-| `cozy` | Default for atmospheric narration | Slow, warm |
-| `funny` | Awkward moments, comedic beats | Slightly faster, shorter pauses |
-| `romantic` | Emotional peaks, longing | Slowest, longest pauses |
-| `playful` | Light teasing, banter | Medium, light |
-| `tense` | Conflict, urgency (rare in this genre) | Fast, short |
-| `melancholy` | Quiet sadness, rain windows | Very slow, dwelling pauses |
+| **SDXL output cache** | `cache/images/<hash>.png` | Prompt, seed, style, size, engine changes (image_key recomputed) |
+| **Library promotion** | `library/visuals/backgrounds/<name>.png` + entry in `_index.json` with `image_key` | Manually deleted; smart short-circuit re-generates if stored `image_key` ≠ current |
+| **Per-anchor upscale** | `cache/<id>/anchors/<chapter_id>.png` | Anchor signature changes |
+| **Compose segments** | `cache/<id>/segments/<name>_<hash>.mp4` | Image, audio, duration, size, fps, or grade changes |
+| **Narration sentences** | `cache/narration/<hash>.wav` | Sentence text, voice, rate, pitch changes |
 
-Don't invent new moods — they're typed and validated.
-
----
-
-## When the user asks for a new episode
-
-1. **Read `in/README.md`** for the current schema (every field documented).
-2. **Read `in/example.json`** for a complete worked example
-   (ร้านกาแฟของคุณปีศาจ ep1, ~32 min, 5 chapters).
-3. **Read `manuscripts/`** if they have raw chapter text already — that's
-   the source material for the narration blocks.
-4. **Pick the chapter list** — 4–6 chapters for a 30-min episode is the sweet
-   spot. Each chapter = one visual anchor + 1–3 narration blocks.
-5. **Write the spec JSON** to `in/<id>.json`. Replace the existing file or
-   `_`-prefix it. Match narration length to `duration_hint_sec` at roughly
-   2.5 Thai characters per second of read time at rate `-10%`.
-6. **Tell the user to run** `./novel validate <id>` first, then `./novel render <id>`.
-   Don't run it yourself unless they ask.
+The smart library short-circuit means: edit a prompt in JSON → that specific anchor regenerates. Same prompt → instant library reuse, zero SDXL cost.
 
 ---
 
-## Writing romantic-comedy narration well
+## 10. Performance characteristics (M2 Pro 32 GB, default 720p24)
 
-The narration carries the show. A few principles that match the voice the
-user wants:
+| Operation | Time |
+| --- | --- |
+| `./novel doctor` | <1s |
+| `./novel validate` | <1s |
+| Stage 1 narrate (9 min episode, cold) | ~60–90s |
+| Stage 1 narrate (warm, all cached) | ~5s |
+| Stage 2 images (5 new SDXL anchors, model loaded) | ~25s |
+| Stage 2 images (all library hits) | ~3s |
+| Stage 3 compile timeline | <1s |
+| Stage 4 compose (5 chapters, 8 segments, 4 parallel) | ~30–60s |
+| Stage 5 mux (libx264 crf28) | ~30–60s |
+| **Cold render, 9-min episode** | **~3–5 min** |
+| **Warm render (one paragraph edited)** | **~40s** |
+| **Cold render, 30-min episode** | **~10–15 min** |
+| **Batch of 10 episodes** | **~40 min sequential** |
 
-- **Describe small physical details.** "เปลือกตาข้างหนึ่งกระตุกเล็กน้อย"
-  beats "เธอประหม่า". Specificity is cozy.
-- **Let comedy be deadpan.** The narrator should describe a chaotic moment
-  in a calm tone — that contrast is the humor.
-- **Inner thoughts are gold.** What the character notices but doesn't say
-  is the whole romance. Use them generously.
-- **Awkward pauses are storytelling.** Long sentences with embedded asides
-  read aloud better than short choppy ones in Thai.
-- **Resist resolving things.** A scene that ends with both characters
-  *not* admitting what they feel is more romantic than one that resolves.
-
----
-
-## The library system
-
-When you write a `prompt` that you think will be reused, include
-`save_to_library_as: "descriptive_slug"`. On first render, the image
-gets promoted into `library/visuals/backgrounds/<slug>.png` and the
-`_index.json` is updated with the prompt + seed + tags.
-
-Subsequent episodes should `ref: "library://backgrounds/<slug>"` instead
-of regenerating.
-
-The library is the long-lived value of this project. Episodes 1–3 grow it;
-episodes 4+ should mostly reuse it.
+Output specs (720p24 default): ~7 MB/min, H.264 + AAC stereo, -14 LUFS YouTube target.
 
 ---
 
-## CLI commands (all shipping today)
+## 11. Available skill: json-transform
 
-- `./generate [<id>]` — one-shot: full pipeline (narrate → images → compose → mux)
-- `./novel doctor` — env check (Python, ffmpeg+VideoToolbox, Thai font)
-- `./novel new <id>` — scaffold `in/<id>.json` from `in/example.json`
-- `./novel validate [<id>]` — schema check + pacing warnings
-- `./novel narrate [<id>]` — Phase B only (edge-tts → WAVs)
-- `./novel images [<id>] [--force]` — Phase C only (SDXL Turbo + library + upscale)
-- `./novel render [<id>]` — same as `./generate` but assumes venv is ready
-- `./clean` — wipe caches + outputs; preserves library, models, content
+`.claude/skills/json-transform/SKILL.md` is a project-local Claude Code skill with two modes:
 
-No live preview server — render is fast enough (~1–2 min) that the loop is
-"edit JSON → `./generate` → play MP4". For just narration, run `./novel narrate`
-and listen to `cache/<id>/blocks/*.wav` directly.
+| Trigger | Mode |
+| --- | --- |
+| "/json-transform create a story about X" | **A** — invent story from premise, write Thai prose, output JSON |
+| "/json-transform transform my .md files at <folder>" | **B** — read existing prose files, reshape into JSON without inventing new content |
+
+Either way the output is a valid `in/<name>.json` ready for `./generate`. The skill knows the schema, the normalizer aliases, the voice guidance, and the library convention.
+
+It auto-loads for any Claude Code session opened in this repo — no install step. To use from a different agent (Cowork, etc.), point that agent at the same `SKILL.md` path.
 
 ---
 
-## Apple Silicon constraints
+## 12. Files to read on session start
 
-- **M2 Pro 32 GB. Max 3 parallel per stage** (3 edge-tts, 3 Remotion chunks).
-- **SDXL Turbo via MLX**, 1024×576 generation, Real-ESRGAN upscale to 1920×1080.
-- **Whisper-MLX** for alignment (Neural Engine).
-- **VideoToolbox H.264** for encoding (3× faster than libx264).
-- Never run image generation and Remotion render simultaneously on 16 GB
-  machines (we're 32 GB so this is fine, but the schema should still allow
-  it to be opt-in for portability).
+In this order:
+
+1. **This file (`CLAUDE.md`)** — orient on the architecture and decisions
+2. **`README.md`** — user-facing project overview (11 sections, ~550 lines)
+3. **`in/template.example.json`** — canonical schema with inline FIXED/PER_SERIES/PER_EPISODE tags
+4. **`in/README.md`** — field-by-field schema reference
+5. **`.claude/skills/json-transform/SKILL.md`** — the authoring skill (read before helping with episode JSON)
+6. **`src/thai_novel/spec.py`** — Pydantic source of truth, including the `_normalize_episode_dict()` aliases
+7. **Any existing `in/*.json` (non-`.example.json`)** — for series-voice and character continuity
+
+---
+
+## 13. Common operations cheatsheet
+
+```bash
+# Render the current spec
+./generate
+
+# Validate without rendering
+./novel validate <name>
+
+# Just synthesize narration (audio-only check)
+./novel narrate <name>
+ls cache/<name>/blocks/      # listen to these to QA voice/pacing
+
+# Generate / promote images only
+./novel images <name>
+
+# Force regeneration of all images (ignore smart cache + library hit)
+./novel images <name> --force
+
+# Nuke caches and outputs to start fresh
+./clean
+
+# Reset to empty (keeps library + models + venv)
+./clean --yes
+
+# Manually drop a promoted background you want to redo
+rm library/visuals/backgrounds/<name>.png
+./generate          # next run regenerates that one anchor
+```
+
+---
+
+## 14. Things explicitly NOT done (don't add without consensus)
+
+- **No motion implementation in compose.** Schema accepts motion presets but Stage 4 ignores them. Adding zoompan would re-introduce complexity. Discuss before implementing.
+- **No subtitle overlay rendering.** Disabled by default after we tried it and decided the cinematic frame should breathe. SRT export remains.
+- **No automatic preview server.** Removed with Remotion. The fast warm-render path serves as the preview.
+- **No multi-image per scene (slideshow).** Stays one anchor per chapter; per-scene `anchor_override` is the escape hatch and stays capped at ≤4 per episode.
+- **No subprocess.exec / shell strings.** Always use `asyncio.create_subprocess_exec` with argv-list to dodge shell injection (and a pre-existing project hook).
+- **No `node_modules/`, `package.json`, `remotion/`, `scripts/render.mjs`.** These were removed in the pure-ffmpeg rewrite; don't re-add.
+- **No `./novel preview`.** Same reason. The warm-render loop is the preview.
+- **No editing `manuscripts/` files programmatically.** That's the user's source material.

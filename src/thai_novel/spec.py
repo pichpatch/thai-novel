@@ -7,16 +7,23 @@ The JSON in `in/*.json` is either:
 
 See in/example.json for a complete worked example,
 and docs/JSON_SCHEMA.md for the field-by-field reference.
+
+Forgiving loader: load_episodes() normalizes common spec drift before
+validation (auto-generates missing narration_block ids, maps mood/motion
+aliases). See _normalize_episode_dict().
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import re
 from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+log = logging.getLogger("thai_novel.spec")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Enums / literals
@@ -321,19 +328,121 @@ class Episode(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Forgiving loader — auto-fix common spec drift before validation
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Cowork-generated specs sometimes use near-miss names. Rather than reject them
+# and force manual file edits, we normalize them silently at load time. Any
+# remap is logged at INFO level so authors can see what was fixed.
+
+_MOOD_ALIASES = {
+    "melancholic": "melancholy",
+    "sad":         "melancholy",
+    "happy":       "playful",
+    "calm":        "cozy",
+    "neutral":     "cozy",
+    "angry":       "tense",
+    "scared":      "tense",
+}
+
+_MOTION_ALIASES = {
+    # User-friendly variants that aren't in our official preset list
+    "slow_pan_left":  "pan_left",
+    "slow_pan_right": "pan_right",
+    "slow_pan_up":    "pan_left",   # closest equivalent (the composer ignores motion anyway)
+    "slow_pan_down":  "pan_right",
+    "fade_in":        "static",
+    "fade_out":       "static",
+    "none":           "static",
+    "":               "static",
+}
+
+
+def _normalize_episode_dict(raw: dict, source: str = "<spec>") -> dict:
+    """
+    Pre-process raw JSON to fix common AI-generated discrepancies before
+    Pydantic validation. Modifications:
+      - Auto-generate `narration_block.id` if missing (e.g. 'chapter_001_b1')
+      - Auto-generate `chapter.id` if missing (e.g. 'ch_01')
+      - Remap known `mood` aliases (e.g. melancholic → melancholy)
+      - Remap known `motion` aliases (e.g. slow_pan_left → pan_left)
+    Always logs (INFO) what was changed so the author can clean their source.
+    """
+    if not isinstance(raw, dict):
+        return raw
+
+    fixes: list[str] = []
+
+    for ci, ch in enumerate(raw.get("chapters", []) or []):
+        if not isinstance(ch, dict):
+            continue
+
+        # Chapter id (rare miss, but cheap to handle)
+        if not ch.get("id"):
+            new_id = f"ch_{ci+1:02d}"
+            fixes.append(f"chapter[{ci}].id ← '{new_id}' (was missing)")
+            ch["id"] = new_id
+
+        # Chapter visual_anchor.motion
+        va = ch.get("visual_anchor") or {}
+        if isinstance(va, dict) and "motion" in va and va["motion"] in _MOTION_ALIASES:
+            old = va["motion"]
+            va["motion"] = _MOTION_ALIASES[old]
+            fixes.append(f"chapter[{ci}].visual_anchor.motion: '{old}' → '{va['motion']}'")
+
+        # Narration blocks
+        for bi, b in enumerate(ch.get("narration_blocks", []) or []):
+            if not isinstance(b, dict):
+                continue
+            # Block id
+            if not b.get("id"):
+                new_id = f"{ch['id']}_b{bi+1}"
+                fixes.append(f"chapter[{ci}].narration_blocks[{bi}].id ← '{new_id}' (was missing)")
+                b["id"] = new_id
+            # Mood
+            if "mood" in b and b["mood"] in _MOOD_ALIASES:
+                old = b["mood"]
+                b["mood"] = _MOOD_ALIASES[old]
+                fixes.append(f"chapter[{ci}].narration_blocks[{bi}].mood: '{old}' → '{b['mood']}'")
+            # anchor_override.motion (per-scene image)
+            ao = b.get("anchor_override") or {}
+            if isinstance(ao, dict) and "motion" in ao and ao["motion"] in _MOTION_ALIASES:
+                old = ao["motion"]
+                ao["motion"] = _MOTION_ALIASES[old]
+                fixes.append(
+                    f"chapter[{ci}].narration_blocks[{bi}].anchor_override.motion: "
+                    f"'{old}' → '{ao['motion']}'"
+                )
+
+    if fixes:
+        log.info(f"[{source}] auto-normalized {len(fixes)} field(s):")
+        for f in fixes[:20]:  # cap log spam
+            log.info(f"  - {f}")
+        if len(fixes) > 20:
+            log.info(f"  ... and {len(fixes) - 20} more")
+
+    return raw
+
+
 def load_episodes(path: Path) -> list[Episode]:
     """
     Load one or more Episode objects from a JSON file.
 
+    Pre-normalizes common AI-generated quirks (missing block ids, mood/motion
+    aliases) so specs that are 'almost right' validate instead of erroring out.
+    See _normalize_episode_dict() for the full list of auto-fixes.
+
     Raises pydantic.ValidationError with a multi-line, human-readable message
-    if anything is malformed. The CLI's `validate` command catches this and
-    pretty-prints with rich.
+    if anything is malformed beyond what the normalizer can repair. The CLI's
+    `validate` command catches this and pretty-prints with rich.
     """
     raw: Any = json.loads(path.read_text(encoding="utf-8"))
+    source = path.name
     if isinstance(raw, list):
-        return [Episode.model_validate(item) for item in raw]
+        return [Episode.model_validate(_normalize_episode_dict(item, source)) for item in raw]
     if isinstance(raw, dict):
-        return [Episode.model_validate(raw)]
+        return [Episode.model_validate(_normalize_episode_dict(raw, source))]
     raise ValueError(
         f"Top-level JSON must be either an Episode object or a list of Episodes; "
         f"got {type(raw).__name__}"
