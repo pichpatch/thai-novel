@@ -63,6 +63,7 @@ These come from rounds of "we tried it and learned":
 | **Default resolution: 1280×720 @ 24 fps** | 1080p30 produced 400+ MB files and added ~30s of render. 720p24 with static frames lands at ~14 MB for 9 minutes. Bump to 1920×1080 in JSON if needed. |
 | **All chapter images: `motion: "static"`** | The composer (Stage 4) **does not implement motion**. The field is kept in the schema for future, but currently every preset (`slow_zoom_in`, etc.) renders identically to `static`. Setting motion has zero render effect today — just keeps the spec future-proof. |
 | **Subtitles default OFF** | `subtitles.enabled = false` in schema default + example. Overlay text crowded the cinematic frames. SRT is still exported next to `final.mp4` (upload as YT captions). |
+| **Chapter title cards default OFF** | `Chapter.show_title_card = false`. This is an AUDIOBOOK — listeners are not looking at the screen, so a silent ~4s card between chapters is dead air. A previous attempt to narrate the chapter title on top of the card was rolled back: the user explicitly wants chapter transitions to be seamless audio. Keep chapter count low rather than re-enabling the card. Set `true` per chapter only for deliberate visual interludes. |
 | **Logo welcome card: full-screen edge-to-edge** | `render_logo_splash` uses cover semantics — scales the logo to fill the entire 720×1280 frame. The user's 1672×941 logo is 16:9, so it fills cleanly with no crop. No gradient backdrop, no welcome text. |
 | **Concurrency = 4 (was 3)** | Static images + 720p drop Chrome-equivalent worker RAM from 5 GB → 3.5 GB. 4 ffmpeg workers × 3.5 GB = 14 GB peak, safe on 32 GB. |
 | **Library is never deleted by `./clean`** | Library backgrounds are real GPU output (~5s each). Treated as user content. `./clean --library` flag was REMOVED; if you really need to drop one: `rm library/visuals/backgrounds/<name>.png` by hand. |
@@ -222,8 +223,8 @@ The full schema lives in `src/thai_novel/spec.py`. Quick reference:
 {
   "id": "ch_01",
   "title": "<Thai chapter title>",
-  "show_title_card": true,
-  "title_card_duration_sec": 4,
+  "show_title_card": false,         // default off — audiobook, silent cards are dead air
+  "title_card_duration_sec": 4,     // only used if show_title_card is true
   "visual_anchor": {              // ONE per chapter (default)
     "prompt": "<English SDXL prompt>",
     "save_to_library_as": "<series>_ep<N>_<slug>",

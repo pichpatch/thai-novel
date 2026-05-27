@@ -57,7 +57,7 @@
       "voice":              "th-TH-PremwadeeNeural",
       "rate":               "-10%",
       "pitch":              "+0Hz",
-      "sentence_pause_ms":  320,
+      "sentence_pause_ms":  200,
       "paragraph_pause_ms": 800,
       "mood_pauses": {
         "cozy":       { "sentence_pause_ms": 380 },
@@ -198,11 +198,11 @@
           "PER_EPISODE — this is where the story lives.",
           "Aim for 4–6 chapters per 30-minute episode. Each chapter = one visual anchor + 1–3 narration blocks.",
           "Chapter id must be slug-safe: 'ch_01', 'ch_02', ...",
-          "show_title_card: true displays the chapter title for ~4 seconds between chapters."
+          "show_title_card: default FALSE — this is an audiobook, so silent title cards between chapters are dead air. Set true only for deliberate visual interludes."
         ],
         "id":                      "ch_01",
         "title":                   "<หัวข้อตอน — ภาษาไทย>",
-        "show_title_card":         true,
+        "show_title_card":         false,
         "title_card_duration_sec": 4,
 
         "visual_anchor": {
@@ -254,7 +254,7 @@
         "_doc": "Second chapter — pattern repeats. Reuse a library anchor when the scene returns to a known location.",
         "id":                      "ch_02",
         "title":                   "<หัวข้อตอนที่สอง>",
-        "show_title_card":         true,
+        "show_title_card":         false,
         "title_card_duration_sec": 4,
         "visual_anchor": {
           "_doc": "Example of REUSING a library anchor. Pretend ch_01 of episode 1 already promoted 'cafe_rainy_night_exterior'.",

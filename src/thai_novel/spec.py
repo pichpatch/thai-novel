@@ -100,7 +100,7 @@ class TTSConfig(BaseModel):
     voice: str = "th-TH-PremwadeeNeural"
     rate: str = "-10%"
     pitch: str = "+0Hz"
-    sentence_pause_ms: int = 300
+    sentence_pause_ms: int = 200
     paragraph_pause_ms: int = 800
     mood_pauses: dict[Mood, MoodPause] = Field(default_factory=dict)
 
@@ -224,7 +224,10 @@ class NarrationBlock(BaseModel):
 class Chapter(BaseModel):
     id: str
     title: str
-    show_title_card: bool = True
+    # Default OFF — this is an audiobook. A silent ~4s title card between
+    # chapters is dead air for listeners. Set true explicitly per chapter
+    # only if you want a visual breath (e.g. a montage interlude).
+    show_title_card: bool = False
     title_card_duration_sec: float = 4.0
     visual_anchor: VisualAnchor
     narration_blocks: list[NarrationBlock] = Field(..., min_length=1)
