@@ -13,6 +13,8 @@
 #   ./generate                  # auto-pick the single in/*.json
 #   ./generate devil-cafe-ep01  # pick a specific episode id
 #   ./generate in/foo.json      # or an explicit path
+#   ./generate --test <id>      # A/B render <id> with every image engine,
+#                               # output to novels/_engine_tests/<engine>.mp4
 # ----------------------------------------------------------------------------
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -37,6 +39,13 @@ if [[ ! -x "$VENV/bin/thai-novel" ]]; then
   "$VENV/bin/pip" install --quiet -e .
 fi
 
-# ── 2. Run the full pipeline. exec replaces the bash process with python,
-#       so when python exits, the whole ./generate call exits cleanly.
+# ── 2a. --test mode dispatches to scripts/test_engines.py ──────────────────
+if [[ "${1:-}" == "--test" ]]; then
+  shift
+  [[ $# -eq 0 ]] && die "./generate --test requires an episode id, e.g.  ./generate --test ep01-th"
+  exec "$VENV/bin/python" scripts/test_engines.py "$@"
+fi
+
+# ── 2b. Run the normal full pipeline. exec replaces the bash process with
+#         python, so when python exits, the whole ./generate call exits cleanly.
 exec "$VENV/bin/thai-novel" render "$@"

@@ -65,7 +65,7 @@ write the whole spec.
 | --- | --- | --- | --- |
 | `project` | object | yes | — |
 | `tts` | object | no | edge-tts / af_heart equivalent |
-| `image_generation` | object | no | sdxl-turbo, MLX, 1024×576 |
+| `image_generation` | object | no | sdxl-lightning-4step, MLX, 1024×576 |
 | `visual_style` | object | no | cinematic romantic anime |
 | `characters` | dict | no | `{}` |
 | `audio` | object | no | rain ambience, cozy piano |
@@ -115,7 +115,7 @@ Per-mood overrides let you slow down for romantic peaks and speed up for funny b
 
 ```jsonc
 {
-  "engine": "sdxl-turbo",
+  "engine": "sdxl-lightning-4step",
   "backend": "mlx",                  // or "coreml", "diffusers-mps"
   "steps": 4,                        // 4 = sweet spot for SDXL Turbo
   "guidance": 1.5,

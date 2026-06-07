@@ -41,7 +41,15 @@ MotionPreset = Literal[
     "static",
 ]
 TTSEngine = Literal["edge-tts", "piper"]
-ImageEngine = Literal["sdxl-turbo", "z-image-turbo"]
+ImageEngine = Literal[
+    "sdxl-turbo",
+    "sdxl-lightning-4step",
+    "sdxl-lightning-8step",   # 2× steps, ~2× time, noticeably cleaner output
+    "hyper-sdxl-4step",       # ByteDance Hyper-SD LoRA on any SDXL base (incl. anime bases)
+    "hyper-sdxl-8step",       # ⭐ best quality-for-time on SDXL — recommended default
+    "flux-schnell-4step",     # Black Forest Labs FLUX.1-schnell — highest quality, very slow on M2 Pro
+    "z-image-turbo",
+]
 ImageBackend = Literal["mlx", "coreml", "diffusers-mps"]
 ColorGrade = Literal[
     "warm_cozy", "cool_night", "golden_hour", "melancholy_blue", "neutral", "playful_pop"
@@ -106,7 +114,7 @@ class TTSConfig(BaseModel):
 
 
 class ImageGeneration(BaseModel):
-    engine: ImageEngine = "sdxl-turbo"
+    engine: ImageEngine = "sdxl-lightning-4step"
     backend: ImageBackend = "mlx"
     steps: int = 4
     guidance: float = 1.5
@@ -115,6 +123,10 @@ class ImageGeneration(BaseModel):
     gen_width: int = 1024
     gen_height: int = 576
     upscaler: Literal["realesrgan", "lanczos", "none"] = "realesrgan"
+    # Optional override of the SDXL base checkpoint. Used by `hyper-sdxl-4step`
+    # to point at an anime base (e.g. "cagliostrolab/animagine-xl-3.1").
+    # Other engines ignore it.
+    base_model: str | None = None
 
     @model_validator(mode="after")
     def gen_size_is_16_9(self) -> ImageGeneration:
@@ -126,7 +138,18 @@ class ImageGeneration(BaseModel):
         return self
 
 
+Tone = Literal["realistic", "anime"]
+
+
 class VisualStyle(BaseModel):
+    # High-level aesthetic. Drives:
+    #   - automatic prompt-keyword injection (realistic → "photograph, photorealistic, ..."
+    #     vs anime → "anime style, illustration, ...")
+    #   - automatic base_model selection when image_generation.base_model is unset
+    #     (realistic → SDXL base 1.0;  anime → cagliostrolab/animagine-xl-3.1)
+    # Override either knob explicitly (base_model in image_generation, or extra
+    # keywords in base_prompt) and your override wins.
+    tone: Tone = "realistic"
     base_prompt: str = ""
     negative_prompt: str = "low quality, blurry, bad anatomy, text, watermark"
     color_grade: ColorGrade = "warm_cozy"

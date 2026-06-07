@@ -20,7 +20,9 @@
 #   manuscripts/, voices/, intro/, music/, cover/   your content
 #
 # Optional flags:
-#   --models      also wipe models/   (~6.5 GB SDXL redownload — rarely useful)
+#   --models      also wipe models/ AND ~/.cache/huggingface/{hub,xet}
+#                 (forces full redownload of every diffusion model — ~50+ GB
+#                 if you've been collecting Animagine + Pony + FLUX + Z-Image)
 #   --yes, -y     skip confirmation prompt
 #   -h, --help    show this help
 #
@@ -97,6 +99,11 @@ for d in novels/*/output novels/*/_work; do
 done
 
 $MODELS  && [[ -d models ]]                       && paths+=("models")
+# --models also wipes the HuggingFace default cache (~/.cache/huggingface/hub/).
+# Some pipelines write outside our HF_HOME override; without this, "redownload"
+# means redownloading by HF cache rules, which can miss what's already there.
+$MODELS  && [[ -d "$HOME/.cache/huggingface/hub" ]] && paths+=("$HOME/.cache/huggingface/hub")
+$MODELS  && [[ -d "$HOME/.cache/huggingface/xet" ]] && paths+=("$HOME/.cache/huggingface/xet")
 
 if [[ ${#paths[@]} -eq 0 ]]; then
   say "nothing to clean"

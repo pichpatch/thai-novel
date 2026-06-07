@@ -120,7 +120,8 @@ Skip these and you will invent FIXED values that contradict the channel's standa
 
 4. **Generate visual anchors from the prose**:
    - For each chapter, read the prose and identify the dominant SCENE/SETTING.
-   - Convert to a 1-sentence English prompt: `[scene type] at [time of day] in [setting], [lighting], [atmosphere], painterly cinematic anime style, shallow depth of field, film grain`.
+   - Convert to a 1-sentence English prompt focusing on SUBJECT/SETTING/LIGHTING. Do **NOT** put style keywords like `anime`, `painterly`, `photoreal`, or `cinematic photograph` here — those are auto-injected from `visual_style.tone`. Example:
+     `Thai beach resort at golden hour, five young men arriving with luggage, warm sun, shallow depth of field`
    - Use the project's `visual_style.base_prompt` as the house style (don't repeat it — it's prepended automatically).
    - `save_to_library_as`: slug-safe, series-prefixed (e.g. `<series-id>_ep<N>_<chapter-slug>`).
    - Check `library/visuals/backgrounds/` first — REUSE existing assets when the scene matches.
@@ -177,15 +178,46 @@ Auto-normalizer accepts these aliases (prefer canonical names anyway): `melancho
 
 `warm_cozy`, `cool_night`, `golden_hour`, `melancholy_blue`, `playful_pop`, `neutral`. Set once at `visual_style.color_grade`. Override per-anchor only when a scene needs a distinctly different palette.
 
+### Tone — the aesthetic switch (NEW)
+
+`visual_style.tone` is the single field that decides realistic vs anime. **Default: `"realistic"`**. Valid values: `"realistic" | "anime"`.
+
+| Tone | Auto-prepended to positive prompt | Auto base_model |
+|---|---|---|
+| `realistic` (default) | `cinematic photograph, photorealistic, hyperrealistic, ` | None (= SDXL base 1.0) |
+| `anime` | `anime style, illustration, ` | `cagliostrolab/animagine-xl-3.1` |
+
+**Do NOT** put style words like `anime style`, `painterly`, `photorealistic`, or `cinematic photograph` in `visual_style.base_prompt` or per-anchor prompts — tone handles that automatically. Mixing them produces conflicted output.
+
+`base_prompt` should contain **subject/atmosphere/lighting only**: e.g. `"dramatic atmosphere, natural lighting, shallow depth of field, 35mm film, sharp focus"`.
+
+### Image generation defaults (channel-wide FIXED)
+
+Copy these from `in/template.example.json`. Don't change unless instructed:
+
+```jsonc
+"image_generation": {
+  "engine":     "hyper-sdxl-4step",   // FIXED — fast SDXL distilled LoRA
+  "steps":      4,                     // FIXED — engine forces 4 anyway
+  "guidance":   0,                     // FIXED — engine forces 0 anyway
+  "seed":       <int>,                 // PER_EPISODE — pin for reproducibility
+  "gen_width":  1280,                  // FIXED — 720p output
+  "gen_height": 720,                   // FIXED — 16:9
+  "upscaler":   "realesrgan"           // FIXED — sharper upscale to 1080p
+}
+```
+
+To override aesthetic, set `image_generation.base_model` to any SDXL repo id (e.g. Pony, AAM XL). User override always wins over the tone default. Pony bases auto-inject score tags.
+
 ### Visual anchor prompts
 
 - **Always English** — SDXL handles English much better than Thai.
 - **Prompt template that works**:
   ```
   [scene type] at [time of day] in [setting], [lighting description],
-  [atmosphere descriptors], [character description if any],
-  painterly cinematic anime style, shallow depth of field, film grain, 35mm
+  [atmosphere descriptors], [character description if any]
   ```
+- **No style keywords here.** Tone field provides them.
 - The `visual_style.base_prompt` is prepended automatically — don't repeat house-style adjectives.
 
 ### Narration blocks

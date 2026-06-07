@@ -20,88 +20,99 @@
       "JSON has no native comments, so we use _doc objects/arrays.",
       "If your editor warns about 'unknown property', that's expected — it's a comment."
     ],
-
     "project": {
       "_doc": {
-        "id":                  "PER_EPISODE | REQUIRED | slug-safe (a-z, 0-9, -, _). Becomes the output filename: novels/<id>/output/final.mp4",
-        "title":               "PER_EPISODE | REQUIRED | shown on the title card + spoken in the intro narration",
-        "series":              "PER_SERIES  | OPTIONAL | groups episodes for batch-publishing tooling later",
-        "episode":             "PER_EPISODE | OPTIONAL | integer; used to build 'ตอนที่ N' if intro.title_narration is not set",
-        "language":            "FIXED       | always 'th'",
-        "theme":               "PER_SERIES  | OPTIONAL | for your own reference; not used by the pipeline",
-        "resolution":          "FIXED       | '1280x720' is the sweet spot (~14 MB / 9 min). '1920x1080' is 3x bigger and ~30s slower",
+        "id": "PER_EPISODE | REQUIRED | slug-safe (a-z, 0-9, -, _). Becomes the output filename: novels/<id>/output/final.mp4",
+        "title": "PER_EPISODE | REQUIRED | shown on the title card + spoken in the intro narration",
+        "series": "PER_SERIES  | OPTIONAL | groups episodes for batch-publishing tooling later",
+        "episode": "PER_EPISODE | OPTIONAL | integer; used to build 'ตอนที่ N' if intro.title_narration is not set",
+        "language": "FIXED       | always 'th'",
+        "theme": "PER_SERIES  | OPTIONAL | for your own reference; not used by the pipeline",
+        "resolution": "FIXED       | '1280x720' is the sweet spot (~14 MB / 9 min). '1920x1080' is 3x bigger and ~30s slower",
         "target_duration_min": "PER_EPISODE | OPTIONAL | advisory only — actual duration comes from real audio length"
       },
-      "id":       "devil-cafe-ep_xx",
-      "title":    "<ชื่อตอน>",
-      "series":   "ร้านกาแฟของคุณปีศาจ",
-      "episode":  2,
+      "id": "devil-cafe-ep_xx",
+      "title": "<ชื่อตอน>",
+      "series": "ร้านกาแฟของคุณปีศาจ",
+      "episode": 2,
       "language": "th",
-      "theme":    "romantic comedy fantasy — cozy slow-burn",
+      "theme": "romantic comedy fantasy — cozy slow-burn",
       "resolution": "1280x720",
       "target_duration_min": 30
     },
-
     "tts": {
       "_doc": {
-        "_intent":            "FIXED — the channel's voice and pacing. Don't override unless you know why.",
-        "engine":             "FIXED | 'edge-tts' (Microsoft, free, networked). Alternative: 'piper' (local, slower setup)",
-        "voice":              "FIXED | 'th-TH-PremwadeeNeural' is the cozy female voice. Other Thai voices: th-TH-NiwatNeural (male)",
-        "rate":               "FIXED | speech rate. '-10%' = 10% slower than baseline. Cozy/romantic stories want -10% to -15%",
-        "pitch":              "FIXED | '+0Hz' = unchanged. Use '+1Hz' / '-1Hz' to nudge brightness; bigger values sound robotic",
-        "sentence_pause_ms":  "FIXED | gap between sentences in milliseconds. 300 = brisk, 400 = cozy, 500 = melancholy",
+        "_intent": "FIXED — the channel's voice and pacing. Don't override unless you know why.",
+        "engine": "FIXED | 'edge-tts' (Microsoft, free, networked). Alternative: 'piper' (local, slower setup)",
+        "voice": "FIXED | 'th-TH-PremwadeeNeural' is the cozy female voice. Other Thai voices: th-TH-NiwatNeural (male)",
+        "rate": "FIXED | speech rate. '-10%' = 10% slower than baseline. Cozy/romantic stories want -10% to -15%",
+        "pitch": "FIXED | '+0Hz' = unchanged. Use '+1Hz' / '-1Hz' to nudge brightness; bigger values sound robotic",
+        "sentence_pause_ms": "FIXED | gap between sentences in milliseconds. 300 = brisk, 400 = cozy, 500 = melancholy",
         "paragraph_pause_ms": "FIXED | longer gap after paragraphs (rarely tweaked)",
-        "mood_pauses":        "FIXED | per-mood overrides. Pipeline picks the override that matches each narration_block's mood."
+        "mood_pauses": "FIXED | per-mood overrides. Pipeline picks the override that matches each narration_block's mood."
       },
-      "engine":             "edge-tts",
-      "voice":              "th-TH-PremwadeeNeural",
-      "rate":               "-10%",
-      "pitch":              "+0Hz",
-      "sentence_pause_ms":  200,
+      "engine": "edge-tts",
+      "voice": "th-TH-PremwadeeNeural",
+      "rate": "-10%",
+      "pitch": "+0Hz",
+      "sentence_pause_ms": 200,
       "paragraph_pause_ms": 800,
       "mood_pauses": {
-        "cozy":       { "sentence_pause_ms": 380 },
-        "funny":      { "sentence_pause_ms": 220, "rate_override": "-5%" },
-        "romantic":   { "sentence_pause_ms": 460, "rate_override": "-15%" },
-        "playful":    { "sentence_pause_ms": 260 },
-        "melancholy": { "sentence_pause_ms": 500, "rate_override": "-18%" }
+        "cozy": {
+          "sentence_pause_ms": 380
+        },
+        "funny": {
+          "sentence_pause_ms": 220,
+          "rate_override": "-5%"
+        },
+        "romantic": {
+          "sentence_pause_ms": 460,
+          "rate_override": "-15%"
+        },
+        "playful": {
+          "sentence_pause_ms": 260
+        },
+        "melancholy": {
+          "sentence_pause_ms": 500,
+          "rate_override": "-18%"
+        }
       }
     },
-
     "image_generation": {
       "_doc": {
-        "_intent":   "FIXED — the channel's image-gen settings. The visual style across episodes should look consistent.",
-        "engine":    "FIXED | 'sdxl-turbo' is the only one wired right now",
-        "backend":   "FIXED | 'mlx' is reserved; current implementation uses diffusers+MPS",
-        "steps":     "FIXED | SDXL Turbo is designed for 1–4 steps. 4 = best quality. Higher does NOT help (it's distilled)",
-        "guidance":  "FIXED | SDXL Turbo forces guidance to 0.0 internally — value here is ignored for sdxl-turbo",
-        "seed":      "FIXED | pin a number for reproducibility. Same seed + same prompt = same image",
-        "gen_width": "FIXED | 1024 is SDXL Turbo's sweet spot",
-        "gen_height":"FIXED | 576 = 16:9 to match the output. Don't change without reason",
-        "upscaler":  "FIXED | 'lanczos' (clean+fast) or 'realesrgan' (sharper, needs binary)"
+        "_intent": "FIXED — the channel's image-gen settings. The visual style across episodes should look consistent.",
+        "engine": "FIXED | engine choices: hyper-sdxl-4step (default, fast realistic/anime via tone) | sdxl-lightning-4step | sdxl-turbo | hyper-sdxl-8step (quality, ~2x slower) | z-image-turbo (very slow) | flux-schnell-4step (best quality, very slow, requires HF auth)",
+        "backend": "FIXED | 'mlx' is reserved; current implementation uses diffusers+MPS",
+        "steps": "FIXED | distilled engines force their own step count internally (4 for *-4step variants, 8 for *-8step). Value here is advisory.",
+        "guidance": "FIXED | distilled engines force guidance=0 internally. Value here is advisory.",
+        "seed": "FIXED | pin a number for reproducibility. Same seed + same prompt = same image",
+        "gen_width": "FIXED | 1280 (720p output) recommended. 1024 also works (cheaper).",
+        "gen_height": "FIXED | 720 to match 1280 in 16:9. 576 to match 1024.",
+        "upscaler": "FIXED | 'realesrgan' (sharper) or 'lanczos' (fastest, basic). Falls back automatically.",
+        "base_model": "OPTIONAL | overrides the tone-default. Set to e.g. 'cagliostrolab/animagine-xl-3.1' for anime, 'John6666/pony-diffusion-v6-xl-sdxl-spo' for Pony (auto-injects score tags), or any SDXL repo id."
       },
-      "engine":     "sdxl-turbo",
-      "backend":    "mlx",
-      "steps":      4,
-      "guidance":   1.5,
-      "seed":       20240115,
-      "gen_width":  1024,
-      "gen_height": 576,
-      "upscaler":   "lanczos"
+      "engine": "hyper-sdxl-4step",
+      "backend": "mlx",
+      "steps": 4,
+      "guidance": 0,
+      "seed": 20240115,
+      "gen_width": 1280,
+      "gen_height": 720,
+      "upscaler": "realesrgan"
     },
-
     "visual_style": {
       "_doc": {
-        "_intent":         "FIXED — the channel's aesthetic. Prepended to every visual_anchor.prompt.",
-        "base_prompt":     "FIXED | always applied. The 'house style' of the channel.",
-        "negative_prompt": "FIXED | what to avoid — keep generic across episodes",
-        "color_grade":     "FIXED | global default. Per-anchor color_grade overrides this. Values: warm_cozy | cool_night | golden_hour | melancholy_blue | playful_pop | neutral"
+        "_intent": "FIXED — the channel's aesthetic. Prepended to every visual_anchor.prompt.",
+        "base_prompt": "FIXED | subject/mood/lighting only. The tone field provides style keywords (photo/anime). Don't put 'anime style' or 'photoreal' here — let tone handle it.",
+        "negative_prompt": "FIXED | mostly leave defaults. Tone auto-rejects anime-vs-photo conflicts.",
+        "color_grade": "FIXED | global default. Per-anchor color_grade overrides this. Values: warm_cozy | cool_night | golden_hour | melancholy_blue | playful_pop | neutral",
+        "tone": "FIXED | 'realistic' (default) or 'anime'. Auto-injects style keywords + picks the default base_model. Override image_generation.base_model to be specific."
       },
-      "base_prompt":     "cinematic romantic anime style, cozy nostalgic atmosphere, warm amber lighting, soft focus, painterly, shallow depth of field, film grain, 35mm",
-      "negative_prompt": "low quality, blurry, bad anatomy, deformed hands, text, watermark, logo, oversaturated, harsh shadows, cluttered",
-      "color_grade":     "warm_cozy"
+      "base_prompt": "dramatic atmosphere, natural lighting, shallow depth of field, 35mm film, sharp focus, detailed skin texture",
+      "negative_prompt": "low quality, blurry, bad anatomy, deformed hands, text, watermark, logo, oversaturated",
+      "color_grade": "warm_cozy",
+      "tone": "realistic"
     },
-
     "_characters_doc": [
       "PER_SERIES — set once for the whole series. Same characters across all episodes in a series.",
       "Keys (male_lead / female_lead) are free-form labels — call them whatever you want.",
@@ -113,85 +124,81 @@
     ],
     "characters": {
       "male_lead": {
-        "name":        "<ชื่อตัวเอกชาย>",
-        "appearance":  "young Thai man in his mid-20s, [specific hair/eyes/expression/distinctive feature]",
-        "wardrobe":    "[default outfit — copy across episodes for consistency]",
+        "name": "<ชื่อตัวเอกชาย>",
+        "appearance": "young Thai man in his mid-20s, [specific hair/eyes/expression/distinctive feature]",
+        "wardrobe": "[default outfit — copy across episodes for consistency]",
         "voice_notes": "narrator only — dialogue is described, not voiced"
       },
       "female_lead": {
-        "name":        "<ชื่อตัวเอกหญิง>",
-        "appearance":  "beautiful Thai woman in her mid-20s, [specific hair/eyes/expression/distinctive feature]",
-        "wardrobe":    "[default outfit — copy across episodes for consistency]",
+        "name": "<ชื่อตัวเอกหญิง>",
+        "appearance": "beautiful Thai woman in her mid-20s, [specific hair/eyes/expression/distinctive feature]",
+        "wardrobe": "[default outfit — copy across episodes for consistency]",
         "voice_notes": "narrator only — dialogue is described, not voiced"
       }
     },
-
     "audio": {
       "_doc": {
-        "_intent":         "FIXED — the channel's audio palette. Track refs use library:// scheme; drop the actual mp3s in library/audio/{music,ambience}/",
-        "music_bed":       "FIXED | per-mood music selection. Pipeline picks based on the block's mood.",
-        "ambience":        "FIXED | layered under music. 'rain_soft', 'cafe_quiet', etc.",
-        "_volume_units":   "volume_db is negative (quieter than 0). -22 dB = comfortable bed under narration",
+        "_intent": "FIXED — the channel's audio palette. Track refs use library:// scheme; drop the actual mp3s in library/audio/{music,ambience}/",
+        "music_bed": "FIXED | per-mood music selection. Pipeline picks based on the block's mood.",
+        "ambience": "FIXED | layered under music. 'rain_soft', 'cafe_quiet', etc.",
+        "_volume_units": "volume_db is negative (quieter than 0). -22 dB = comfortable bed under narration",
         "_duck_explainer": "duck_during_dialogue_db: how much to drop music while narration plays. -6 to -8 dB is standard"
       },
       "music_bed": {
-        "default":     "library://music/cozy_piano_01",
+        "default": "library://music/cozy_piano_01",
         "by_mood": {
-          "funny":      "library://music/playful_uke_01",
-          "romantic":   "library://music/strings_warm_02",
-          "playful":    "library://music/playful_uke_01",
+          "funny": "library://music/playful_uke_01",
+          "romantic": "library://music/strings_warm_02",
+          "playful": "library://music/playful_uke_01",
           "melancholy": "library://music/piano_rain_01"
         },
-        "volume_db":               -22,
-        "crossfade_ms":            1500,
+        "volume_db": -22,
+        "crossfade_ms": 1500,
         "duck_during_dialogue_db": -6
       },
       "ambience": {
-        "default":   "library://ambience/rain_soft",
+        "default": "library://ambience/rain_soft",
         "by_mood": {
-          "cozy":       "library://ambience/cafe_quiet",
-          "funny":      "library://ambience/cafe_quiet",
-          "romantic":   "library://ambience/rain_soft",
+          "cozy": "library://ambience/cafe_quiet",
+          "funny": "library://ambience/cafe_quiet",
+          "romantic": "library://ambience/rain_soft",
           "melancholy": "library://ambience/rain_window"
         },
         "volume_db": -28
       }
     },
-
     "subtitles": {
       "_doc": {
-        "_intent":  "FIXED | default off. Subtitles overlay on the image and can crowd cinematic frames.",
-        "_export":  "Even when enabled=false, an .srt file is still written next to final.mp4 (upload as YouTube captions)",
-        "enabled":  "FIXED | false = clean image, no on-screen text"
+        "_intent": "FIXED | default off. Subtitles overlay on the image and can crowd cinematic frames.",
+        "_export": "Even when enabled=false, an .srt file is still written next to final.mp4 (upload as YouTube captions)",
+        "enabled": "FIXED | false = clean image, no on-screen text"
       },
-      "enabled":                   false,
-      "font":                      "Sarabun",
-      "size_px":                   48,
-      "max_chars_per_line":        38,
-      "style":                     "soft_drop_shadow",
-      "position":                  "bottom_center",
-      "karaoke_reveal":            true,
+      "enabled": false,
+      "font": "Sarabun",
+      "size_px": 48,
+      "max_chars_per_line": 38,
+      "style": "soft_drop_shadow",
+      "position": "bottom_center",
+      "karaoke_reveal": true,
       "emphasize_character_names": true
     },
-
     "intro": {
       "_doc": {
-        "_intent":                "FIXED for channel branding (logo, music, durations). PER_EPISODE only changes via project.title → spoken automatically.",
-        "show":                   "FIXED | true = show 5s logo + 4.5s title card before the story starts",
-        "channel_name":           "FIXED | spoken in the welcome narration: 'ยินดีต้อนรับสู่ช่อง <channel_name>'",
-        "welcome_duration_sec":   "FIXED | how long the logo stays on screen (also caps the welcome narration)",
-        "title_card_duration_sec":"FIXED | how long the episode title card stays on screen",
-        "background_music_ref":   "FIXED | music under the intro. library://music/<name>",
-        "logo_ref":               "FIXED | full-screen logo image. library://overlays/<name>. Falls back to intro/logo.png convention"
+        "_intent": "FIXED for channel branding (logo, music, durations). PER_EPISODE only changes via project.title → spoken automatically.",
+        "show": "FIXED | true = show 5s logo + 4.5s title card before the story starts",
+        "channel_name": "FIXED | spoken in the welcome narration: 'ยินดีต้อนรับสู่ช่อง <channel_name>'",
+        "welcome_duration_sec": "FIXED | how long the logo stays on screen (also caps the welcome narration)",
+        "title_card_duration_sec": "FIXED | how long the episode title card stays on screen",
+        "background_music_ref": "FIXED | music under the intro. library://music/<name>",
+        "logo_ref": "FIXED | full-screen logo image. library://overlays/<name>. Falls back to intro/logo.png convention"
       },
-      "show":                    true,
-      "channel_name":            "TH AI Novel",
-      "welcome_duration_sec":    5,
+      "show": true,
+      "channel_name": "TH AI Novel",
+      "welcome_duration_sec": 5,
       "title_card_duration_sec": 4.5,
-      "background_music_ref":    "library://music/intro_theme",
-      "logo_ref":                "library://overlays/channel_logo"
+      "background_music_ref": "library://music/intro_theme",
+      "logo_ref": "library://overlays/channel_logo"
     },
-
     "chapters": [
       {
         "_doc": [
@@ -200,11 +207,10 @@
           "Chapter id must be slug-safe: 'ch_01', 'ch_02', ...",
           "show_title_card: default FALSE — this is an audiobook, so silent title cards between chapters are dead air. Set true only for deliberate visual interludes."
         ],
-        "id":                      "ch_01",
-        "title":                   "<หัวข้อตอน — ภาษาไทย>",
-        "show_title_card":         false,
+        "id": "ch_01",
+        "title": "<หัวข้อตอน — ภาษาไทย>",
+        "show_title_card": false,
         "title_card_duration_sec": 4,
-
         "visual_anchor": {
           "_doc": [
             "Pick ONE: 'prompt' (generate new) OR 'ref' (reuse from library). Never both.",
@@ -220,12 +226,11 @@
             "motion: kept for future use. Currently the composer ignores it — all chapter images are static.",
             "color_grade: per-anchor override of visual_style.color_grade. Optional."
           ],
-          "prompt":             "<English prompt for SDXL Turbo — specific scene description with mood>",
+          "prompt": "<English prompt for SDXL Turbo — specific scene description with mood>",
           "save_to_library_as": "<slug-safe-name>",
-          "motion":             "static",
-          "color_grade":        "warm_cozy"
+          "motion": "static",
+          "color_grade": "warm_cozy"
         },
-
         "narration_blocks": [
           {
             "_doc": [
@@ -235,53 +240,51 @@
               "Allowed moods: cozy | funny | romantic | tense | melancholy | playful",
               "duration_hint_sec is ADVISORY only — actual duration comes from real edge-tts output."
             ],
-            "id":                "ch01_b1",
-            "mood":              "melancholy",
+            "id": "ch01_b1",
+            "mood": "melancholy",
             "duration_hint_sec": 180,
-            "narration":         "<Thai narration text — 1500–3000 chars. Describe atmosphere, emotions, small physical details. Use ๆ for repetition. Avoid English words.>"
+            "narration": "<Thai narration text — 1500–3000 chars. Describe atmosphere, emotions, small physical details. Use ๆ for repetition. Avoid English words.>"
           },
           {
-            "_doc":              "OPTIONAL second block in the same chapter. Lets you shift mood mid-chapter (e.g. melancholy → cozy) without changing the visual anchor.",
-            "id":                "ch01_b2",
-            "mood":              "cozy",
+            "_doc": "OPTIONAL second block in the same chapter. Lets you shift mood mid-chapter (e.g. melancholy → cozy) without changing the visual anchor.",
+            "id": "ch01_b2",
+            "mood": "cozy",
             "duration_hint_sec": 150,
-            "narration":         "<Thai narration text — continues the same chapter under a different mood.>"
+            "narration": "<Thai narration text — continues the same chapter under a different mood.>"
           }
         ]
       },
-
       {
         "_doc": "Second chapter — pattern repeats. Reuse a library anchor when the scene returns to a known location.",
-        "id":                      "ch_02",
-        "title":                   "<หัวข้อตอนที่สอง>",
-        "show_title_card":         false,
+        "id": "ch_02",
+        "title": "<หัวข้อตอนที่สอง>",
+        "show_title_card": false,
         "title_card_duration_sec": 4,
         "visual_anchor": {
           "_doc": "Example of REUSING a library anchor. Pretend ch_01 of episode 1 already promoted 'cafe_rainy_night_exterior'.",
-          "ref":         "library://backgrounds/cafe_rainy_night_exterior",
-          "motion":      "static",
+          "ref": "library://backgrounds/cafe_rainy_night_exterior",
+          "motion": "static",
           "color_grade": "warm_cozy"
         },
         "narration_blocks": [
           {
-            "id":                "ch02_b1",
-            "mood":              "romantic",
+            "id": "ch02_b1",
+            "mood": "romantic",
             "duration_hint_sec": 200,
-            "narration":         "<Thai narration text.>"
+            "narration": "<Thai narration text.>"
           }
         ]
       }
     ],
-
     "end_card": {
       "_doc": [
         "PER_EPISODE — credits and next-episode tease.",
         "Plays for end_card.duration_sec after the last chapter. No narration (silent card)."
       ],
-      "show":               true,
-      "duration_sec":       8,
+      "show": true,
+      "duration_sec": 8,
       "next_episode_title": "<ชื่อตอนถัดไป>",
-      "message":            "ขอบคุณที่ฟังจนจบ — ติดตามตอนต่อไปได้ในสัปดาห์หน้า"
+      "message": "ขอบคุณที่ฟังจนจบ — ติดตามตอนต่อไปได้ในสัปดาห์หน้า"
     }
   }
 ]

@@ -84,6 +84,13 @@ def resolve_anchor(
         width=episode.image_generation.gen_width,
         height=episode.image_generation.gen_height,
         engine=episode.image_generation.engine,
+        # Match the resolution generate_image does: explicit override OR tone-default.
+        base_model=(
+            episode.image_generation.base_model
+            or ("cagliostrolab/animagine-xl-3.1"
+                if getattr(episode.visual_style, "tone", "realistic") == "anime"
+                else None)
+        ),
     )
 
     # ── Smart library short-circuit ─────────────────────────────────────────

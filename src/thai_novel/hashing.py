@@ -59,6 +59,7 @@ def image_key(
     height: int,
     engine: str,
     model_version: str = "v1",
+    base_model: str | None = None,
 ) -> str:
     return canon_hash(
         {
@@ -72,6 +73,7 @@ def image_key(
             "width": width,
             "height": height,
             "engine": engine,
+            "base_model": base_model,
             "model_version": model_version,
         }
     )
