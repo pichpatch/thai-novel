@@ -44,7 +44,7 @@
       "_doc": {
         "_intent": "FIXED — the channel's voice and pacing. Don't override unless you know why.",
         "engine": "FIXED | 'edge-tts' (Microsoft, free, networked). Alternative: 'piper' (local, slower setup)",
-        "voice": "FIXED | 'th-TH-PremwadeeNeural' is the cozy female voice. Other Thai voices: th-TH-NiwatNeural (male)",
+        "voice": "FIXED | 'th-TH-NiwatNeural' is the calm male narrator (current channel default). Other Thai voices: th-TH-PremwadeeNeural (female, warmer/cozier).",
         "rate": "FIXED | speech rate. '-10%' = 10% slower than baseline. Cozy/romantic stories want -10% to -15%",
         "pitch": "FIXED | '+0Hz' = unchanged. Use '+1Hz' / '-1Hz' to nudge brightness; bigger values sound robotic",
         "sentence_pause_ms": "FIXED | gap between sentences in milliseconds. 300 = brisk, 400 = cozy, 500 = melancholy",
@@ -52,7 +52,7 @@
         "mood_pauses": "FIXED | per-mood overrides. Pipeline picks the override that matches each narration_block's mood."
       },
       "engine": "edge-tts",
-      "voice": "th-TH-PremwadeeNeural",
+      "voice": "th-TH-NiwatNeural",
       "rate": "-10%",
       "pitch": "+0Hz",
       "sentence_pause_ms": 200,
@@ -120,20 +120,26 @@
       "Be SPECIFIC: hair color/style, eye color, age range, distinctive features.",
       "Be CONSISTENT: copy the SAME appearance string between episodes to keep visuals matching.",
       "Doc lives here (sibling of 'characters') instead of inside it because 'characters'",
-      "is a dict-of-models — extra keys at that level would fail validation."
+      "is a dict-of-models — extra keys at that level would fail validation.",
+      "id (NEW, OPTIONAL but recommended): slug-safe key used by visual_anchor.characters. Defaults to the slot name (male_lead/female_lead). Required if you want to reference.",
+      "reference_image (NEW, OPTIONAL): library://characters/<name> — when set AND a chapter's visual_anchor.characters lists this character's id, the pipeline auto-loads IP-Adapter and uses this image as a face/look reference so the character stays consistent across episodes. Drop the actual PNG/JPG at library/visuals/characters/<name>.png to activate; otherwise the field is harmless."
     ],
     "characters": {
       "male_lead": {
         "name": "<ชื่อตัวเอกชาย>",
         "appearance": "young Thai man in his mid-20s, [specific hair/eyes/expression/distinctive feature]",
         "wardrobe": "[default outfit — copy across episodes for consistency]",
-        "voice_notes": "narrator only — dialogue is described, not voiced"
+        "voice_notes": "narrator only — dialogue is described, not voiced",
+        "id": "male_lead",
+        "reference_image": null
       },
       "female_lead": {
         "name": "<ชื่อตัวเอกหญิง>",
         "appearance": "beautiful Thai woman in her mid-20s, [specific hair/eyes/expression/distinctive feature]",
         "wardrobe": "[default outfit — copy across episodes for consistency]",
-        "voice_notes": "narrator only — dialogue is described, not voiced"
+        "voice_notes": "narrator only — dialogue is described, not voiced",
+        "id": "female_lead",
+        "reference_image": null
       }
     },
     "audio": {
@@ -186,14 +192,14 @@
       "_doc": {
         "_intent": "FIXED for channel branding (logo, music, durations). PER_EPISODE only changes via project.title → spoken automatically.",
         "show": "FIXED | true = show 5s logo + 4.5s title card before the story starts",
-        "channel_name": "FIXED | spoken in the welcome narration: 'ยินดีต้อนรับสู่ช่อง <channel_name>'",
+        "channel_name": "FIXED | spoken in the welcome narration: 'ยินดีต้อนรับสู่ช่อง <channel_name> ขอให้สนุกกับการรับฟังนะครับ'",
         "welcome_duration_sec": "FIXED | how long the logo stays on screen (also caps the welcome narration)",
         "title_card_duration_sec": "FIXED | how long the episode title card stays on screen",
         "background_music_ref": "FIXED | music under the intro. library://music/<name>",
         "logo_ref": "FIXED | full-screen logo image. library://overlays/<name>. Falls back to intro/logo.png convention"
       },
       "show": true,
-      "channel_name": "TH AI Novel",
+      "channel_name": "T-H-A-I Novel",
       "welcome_duration_sec": 5,
       "title_card_duration_sec": 4.5,
       "background_music_ref": "library://music/intro_theme",
@@ -224,12 +230,17 @@
             "  ref: 'library://backgrounds/<name>'  (no prompt)",
             "",
             "motion: kept for future use. Currently the composer ignores it — all chapter images are static.",
-            "color_grade: per-anchor override of visual_style.color_grade. Optional."
+            "color_grade: per-anchor override of visual_style.color_grade. Optional.",
+            "characters (NEW, OPTIONAL): list of up to 4 character ids appearing in this scene. Each id must match a key OR an explicit `id` field in episode.characters. When any listed character has a reference_image, IP-Adapter conditions on it for face consistency."
           ],
           "prompt": "<English prompt for SDXL Turbo — specific scene description with mood>",
           "save_to_library_as": "<slug-safe-name>",
           "motion": "static",
-          "color_grade": "warm_cozy"
+          "color_grade": "warm_cozy",
+          "characters": [
+            "male_lead",
+            "female_lead"
+          ]
         },
         "narration_blocks": [
           {

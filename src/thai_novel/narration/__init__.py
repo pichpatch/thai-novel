@@ -127,9 +127,20 @@ async def narrate_episode(
         ))
         ep_num = episode.project.episode
         ep_title = episode.project.title
-        title_text = episode.intro.title_narration or (
-            f"ตอนที่ {ep_num} {ep_title}" if ep_num is not None else ep_title
-        )
+        ep_series = episode.project.series
+        # Auto-format priority:
+        #   1. explicit title_narration if user set it
+        #   2. "{series} ตอนที่ {N} {title}"    (series + episode number + title)
+        #   3. "ตอนที่ {N} {title}"             (no series)
+        #   4. just title (no episode number)
+        if episode.intro.title_narration:
+            title_text = episode.intro.title_narration
+        elif ep_series and ep_num is not None:
+            title_text = f"{ep_series} ตอนที่ {ep_num} {ep_title}"
+        elif ep_num is not None:
+            title_text = f"ตอนที่ {ep_num} {ep_title}"
+        else:
+            title_text = ep_title
         intro_blocks.append(NarrationBlock(
             id="intro_title",
             mood="cozy",

@@ -105,7 +105,7 @@ class MoodPause(BaseModel):
 
 class TTSConfig(BaseModel):
     engine: TTSEngine = "edge-tts"
-    voice: str = "th-TH-PremwadeeNeural"
+    voice: str = "th-TH-NiwatNeural"
     rate: str = "-10%"
     pitch: str = "+0Hz"
     sentence_pause_ms: int = 200
@@ -156,10 +156,23 @@ class VisualStyle(BaseModel):
 
 
 class CharacterSpec(BaseModel):
+    # Optional short slug to reference this character from chapter visual_anchors.
+    # When a chapter lists this id in `visual_anchor.characters`, the pipeline
+    # uses `reference_image` (if set) as an IP-Adapter reference so the character's
+    # face/look stays consistent across all episodes.
+    id: str | None = None
     name: str | None = None
+    name_th: str | None = None                                # optional Thai display name
     appearance: str
+    appearance_th: str | None = None                          # optional Thai description for docs
     wardrobe: str | None = None
     voice_notes: str | None = None
+    # library:// ref to the canonical face/look image for this character.
+    # Format: "library://characters/<slug>"  →  resolves to
+    # library/visuals/characters/<slug>.{png,jpg,webp}
+    # When present AND chapter visual_anchor lists this character id, the
+    # image-gen pipeline auto-loads IP-Adapter and conditions on this image.
+    reference_image: str | None = None
 
 
 class MusicBed(BaseModel):
@@ -205,6 +218,12 @@ class VisualAnchor(BaseModel):
     save_to_library_as: str | None = None                    # e.g. "cafe_rainy_night"
     motion: MotionPreset = "slow_zoom_in"
     color_grade: ColorGrade | None = None                    # overrides project default
+    # Optional list of character ids appearing in this scene. Each id must
+    # match a key OR an `id` field in episode.characters. When any character
+    # in the list has a reference_image, the pipeline auto-loads IP-Adapter
+    # and conditions on those images for face/look consistency.
+    # Max 4 references in one scene (IP-Adapter degrades with more).
+    characters: list[str] = Field(default_factory=list, max_length=4)
 
     @model_validator(mode="after")
     def must_have_ref_or_prompt(self) -> VisualAnchor:

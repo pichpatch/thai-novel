@@ -452,7 +452,7 @@ See `in/README.md` for the full field reference. Quick version:
 ```jsonc
 {
   "project":    { "id": "...", "title": "...", "episode": N, "resolution": "1280x720", "fps": 24 },
-  "tts":        { "voice": "th-TH-PremwadeeNeural", "rate": "-10%", "mood_pauses": {...} },
+  "tts":        { "voice": "th-TH-NiwatNeural", "rate": "-10%", "mood_pauses": {...} },
   "characters": { "male_lead": {...}, "female_lead": {...} },
   "audio":      { "music_bed": {...}, "ambience": {...} },
   "intro":      { "channel_name": "TH AI Novel", "logo_ref": "library://overlays/channel_logo" },

@@ -128,24 +128,49 @@ Per-mood overrides let you slow down for romantic peaks and speed up for funny b
 
 ## `characters`
 
-Used by image prompts (appearance + wardrobe are interpolated) and subtitle
-emphasis (names get bolded automatically). The dict key is free-form; `male_lead`
-and `female_lead` are convention.
+Used by image prompts (appearance + wardrobe are interpolated), subtitle
+emphasis (names get bolded automatically), and — when `reference_image` is set —
+by **IP-Adapter** for face/look consistency across episodes. The dict key is
+free-form; `male_lead` and `female_lead` are convention.
 
 ```jsonc
 {
   "male_lead": {
-    "name": "นที",
-    "appearance": "young Thai man, mid-20s, tired eyes, messy black hair",
-    "wardrobe": "rumpled white shirt, loosened black tie"
+    "id":              "thana",                                 // NEW — used by visual_anchor.characters; defaults to slot name
+    "name":            "ธนภัทร",
+    "name_th":         "ธนภัทร",                                 // NEW (optional) — for bilingual docs
+    "appearance":      "young Thai man, mid-20s, short side-parted dark hair, narrow nose, warm brown eyes",
+    "appearance_th":   "ชายไทยอายุปลายยี่สิบกว่า ผมสั้นแสกข้าง...", // NEW (optional)
+    "wardrobe":        "navy linen button-down, slim trousers, leather strap watch",
+    "reference_image": "library://characters/thana"             // NEW — IP-Adapter ref; resolves to library/visuals/characters/thana.{png,jpg,webp}
   },
   "female_lead": {
-    "name": "ลลิน",
-    "appearance": "beautiful Thai woman, long brown hair, warm hazel eyes",
-    "wardrobe": "cream cardigan, beige cafe apron with embroidered devil tail"
+    "id":              "phim",
+    "name":            "พิมพ์นารา",
+    "appearance":      "beautiful Thai woman, mid-20s, shoulder-length wavy dark hair, sharp bright eyes",
+    "wardrobe":        "cream blouse, pencil skirt, single gold serpent ring",
+    "reference_image": "library://characters/phim"
   }
 }
 ```
+
+### Character `id` field (NEW)
+
+- **Optional but recommended.** Slug-safe key used by `visual_anchor.characters`.
+- Defaults to the slot key if absent — e.g. omitted `id` on `male_lead` is treated as `id="male_lead"`.
+- **Stable across episodes.** If you rename a character's `id` mid-series, the IP-Adapter cache invalidates for that character.
+
+### Character `reference_image` field (NEW)
+
+- **Optional.** A `library://characters/<name>` URI pointing at a PNG/JPG/WEBP under `library/visuals/characters/`.
+- When **set** AND a chapter lists this character's `id` in `visual_anchor.characters`, the pipeline auto-loads **IP-Adapter Plus SDXL** and conditions on this image → same face every episode.
+- When the file is **missing on disk**, the field is silently ignored (the prompt still describes the character; just no IP conditioning).
+- **`./clean --refs`** wipes `library/visuals/characters/`. Standard `./clean` preserves it.
+
+### Multi-character scenes
+
+- `visual_anchor.characters` accepts up to **4 ids per scene**. Beyond 4, IP-Adapter quality degrades.
+- For tight close-ups, list 1 character. For 2-shot dialogue, list 2. Don't list characters who are not visible in the frame.
 
 ## `audio`
 

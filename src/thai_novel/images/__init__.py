@@ -9,7 +9,7 @@ from pathlib import Path
 
 from ..hashing import image_key
 from ..spec import Episode, VisualAnchor
-from .generate import generate_image
+from .generate import generate_image, _resolve_character_references
 from .library import get_metadata, promote, resolve as resolve_lib
 from .upscale import upscale_to_1080p
 
@@ -119,12 +119,27 @@ def resolve_anchor(
                     f"library miss: {anchor.save_to_library_as} ({reason}) — regenerating"
                 )
 
+    # Resolve character reference images for this anchor (if any). Each id
+    # gets translated to a PIL image via the library; missing refs are silently
+    # skipped (warned in logs). Cache key includes the ids so swapping refs
+    # cleanly invalidates.
+    char_ids = list(getattr(anchor, "characters", []) or [])
+    char_refs = []
+    if char_ids:
+        # Episode.characters is a dict of CharacterSpec — convert to plain dicts
+        # for the helper (which accepts dict shape).
+        ep_chars = {k: (v.model_dump() if hasattr(v, "model_dump") else v)
+                    for k, v in (episode.characters or {}).items()}
+        char_refs = _resolve_character_references(char_ids, ep_chars, library_root)
+
     gen_path, _key = generate_image(
         prompt=anchor.prompt,
         style=episode.visual_style,
         image_cfg=episode.image_generation,
         cache_dir=cache_dir,
         models_dir=models_dir,
+        character_refs=char_refs,
+        character_ids_for_cache=char_ids,
     )
 
     src_kind = "generated"

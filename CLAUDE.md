@@ -69,7 +69,7 @@ These come from rounds of "we tried it and learned":
 | **Library is never deleted by `./clean`** | Library backgrounds are real GPU output (~5s each). Treated as user content. `./clean --library` flag was REMOVED; if you really need to drop one: `rm library/visuals/backgrounds/<name>.png` by hand. |
 | **Smart library short-circuit by image_key** | `library/visuals/backgrounds/_index.json` stores the image_key (sha256 of prompt+seed+style+size). On next run, the smart cache only reuses if the key matches; edit the prompt in JSON → it regenerates. |
 | **Auto-normalizer on `load_episodes()`** | Cowork-generated specs sometimes use mood aliases (`melancholic`, `sad`), motion aliases (`slow_pan_left`, `fade_in`), or forget block IDs. The normalizer fixes these silently with INFO logs. See `src/thai_novel/spec.py:_normalize_episode_dict`. |
-| **Default voice: th-TH-PremwadeeNeural** | Cozy Thai female. Rate −10%. Don't change unless the user asks. |
+| **Default voice: th-TH-NiwatNeural** | Calm Thai male narrator. Rate −10%. Don't change unless the user asks. (Female alternative: `th-TH-PremwadeeNeural`.) |
 | **No `./novel preview`** | Removed when Remotion was removed. The render loop is fast enough that "edit JSON → `./generate` → play MP4" works as the preview. For audio-only checks, run `./novel narrate` and listen to `cache/<id>/blocks/*.wav` directly. |
 
 ---

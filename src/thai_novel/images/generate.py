@@ -290,6 +290,107 @@ def _get_diffusers_pipeline(
     return _pipeline
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# IP-Adapter — character reference conditioning
+# ─────────────────────────────────────────────────────────────────────────────
+
+_ip_adapter_loaded = False  # one-shot lazy load per process
+
+def _ensure_ip_adapter_loaded(pipe, scale: float = 0.7) -> bool:
+    """
+    Lazy-load IP-Adapter Plus SDXL weights into the pipeline so we can pass
+    `ip_adapter_image=...` to maintain character consistency across episodes.
+
+    Returns True on success, False if the load failed (no IP-Adapter weights,
+    incompatible pipeline, etc.) — callers should silently skip the IP-Adapter
+    path in that case.
+
+    Files downloaded on first use (~700 MB total):
+      h94/IP-Adapter/sdxl_models/ip-adapter-plus_sdxl_vit-h.bin   (~700 MB)
+      h94/IP-Adapter/models/image_encoder/                         (CLIPVisionModel)
+    """
+    global _ip_adapter_loaded
+    if _ip_adapter_loaded:
+        return True
+    # Only SDXL family pipelines support IP-Adapter via diffusers.
+    # FLUX / Z-Image pipelines don't expose the adapter API in the same way.
+    if not hasattr(pipe, "load_ip_adapter"):
+        log.warning("pipeline does not support IP-Adapter (engine likely flux/z-image) — skipping character references")
+        return False
+    try:
+        # Image encoder must be loaded separately for IP-Adapter Plus.
+        from transformers import CLIPVisionModelWithProjection
+        import torch
+        if pipe.image_encoder is None:
+            pipe.image_encoder = CLIPVisionModelWithProjection.from_pretrained(
+                "h94/IP-Adapter",
+                subfolder="models/image_encoder",
+                torch_dtype=getattr(pipe, "dtype", torch.float16),
+            ).to(pipe.device)
+        pipe.load_ip_adapter(
+            "h94/IP-Adapter",
+            subfolder="sdxl_models",
+            weight_name="ip-adapter-plus_sdxl_vit-h.bin",
+        )
+        pipe.set_ip_adapter_scale(scale)
+        log.info(f"loaded IP-Adapter Plus (scale={scale}) for character references")
+        _ip_adapter_loaded = True
+        return True
+    except Exception as e:
+        log.warning(f"IP-Adapter load failed ({e}); proceeding without character references")
+        return False
+
+
+def _resolve_character_references(
+    character_ids: list[str],
+    episode_characters: dict,
+    library_root: Path,
+) -> list:
+    """
+    Resolve character ids to reference images.
+
+    `episode_characters` is `episode.characters` — a dict keyed by character
+    slot (lead_male / lead_female / etc.). Each value has optional `id` and
+    `reference_image` fields.
+
+    Returns a list of PIL.Image objects (max 4). Characters with no
+    reference_image, or whose ref points at a missing file, are silently
+    skipped (the prompt will still describe them; just no IP conditioning).
+    """
+    from .library import resolve as resolve_lib
+    from PIL import Image
+
+    if not character_ids:
+        return []
+
+    # Build a lookup from id (or slot-key) → CharacterSpec dict
+    by_id: dict[str, dict] = {}
+    for slot, spec in (episode_characters or {}).items():
+        if isinstance(spec, dict):
+            cid = spec.get("id") or slot
+            by_id[cid] = spec
+
+    refs = []
+    for cid in character_ids[:4]:  # IP-Adapter caps at ~4
+        spec = by_id.get(cid)
+        if not spec:
+            log.info(f"character ref '{cid}' not found in episode.characters — skipping")
+            continue
+        ref_uri = spec.get("reference_image")
+        if not ref_uri:
+            continue
+        try:
+            path = resolve_lib(ref_uri, library_root)
+        except Exception as e:
+            log.warning(f"failed to resolve character ref {ref_uri!r}: {e}")
+            continue
+        if not path or not path.exists():
+            log.info(f"character ref image missing on disk: {ref_uri} — skipping")
+            continue
+        refs.append(Image.open(path).convert("RGB"))
+    return refs
+
+
 def _placeholder_image(prompt: str, width: int, height: int, out_path: Path) -> None:
     """
     Tasteful gradient placeholder when SDXL isn't installed. Lets the
@@ -341,11 +442,21 @@ def generate_image(
     image_cfg: ImageGeneration,
     cache_dir: Path,
     models_dir: Path,
+    *,
+    character_refs: list | None = None,    # PIL.Image objects (max 4) for IP-Adapter
+    character_ids_for_cache: list[str] | None = None,   # ids — go into the cache key
 ) -> tuple[Path, str]:
     """
     Generate an image (or return cached). Returns (path, content_key).
 
     The full prompt sent to SDXL is style.base_prompt + " " + prompt.
+
+    `character_refs` — pre-resolved PIL images of characters in this scene.
+                      When non-empty, IP-Adapter is loaded and the refs are
+                      passed as `ip_adapter_image` so face/look stays consistent
+                      across episodes. Only used by SDXL family pipelines.
+    `character_ids_for_cache` — the ids that drove the refs. Included in the
+                      cache key so swapping references invalidates cleanly.
     """
     # ── Resolve effective base_model from tone (when not explicitly set) ────
     # Explicit image_cfg.base_model wins. Otherwise tone picks the default.
@@ -382,6 +493,10 @@ def generate_image(
         height=image_cfg.gen_height,
         engine=image_cfg.engine,
         base_model=effective_base_model,
+        # Including character_ids in the cache key means a chapter whose anchor
+        # gains/loses/swaps a reference will regenerate cleanly (cache miss).
+        # Sorted for stability — order in the list doesn't change the image.
+        model_version=f"v2-chars-{','.join(sorted(character_ids_for_cache or []))}",
     )
     out_path = cache_dir / f"{key}.png"
     if out_path.exists():
@@ -453,6 +568,17 @@ def generate_image(
     )
     if image_cfg.engine != "flux-schnell-4step":
         pipe_kwargs["negative_prompt"] = base_negative
+
+    # ── Character reference conditioning (IP-Adapter) ─────────────────────────
+    # Engaged only when (a) caller passed pre-resolved refs and (b) pipeline
+    # supports the IP-Adapter API (SDXL family does; FLUX/Z-Image don't).
+    if character_refs:
+        if _ensure_ip_adapter_loaded(pipeline, scale=0.7):
+            # Diffusers accepts a single PIL image OR a list (multi-character).
+            pipe_kwargs["ip_adapter_image"] = (
+                character_refs[0] if len(character_refs) == 1 else character_refs
+            )
+
     image = pipeline(**pipe_kwargs).images[0]
     image.save(out_path, "PNG", optimize=True)
     log.info(f"generated {effective_width}x{effective_height} -> {out_path.name}")

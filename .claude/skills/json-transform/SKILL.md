@@ -128,7 +128,14 @@ Skip these and you will invent FIXED values that contradict the channel's standa
 
 5. **Fill in PER_SERIES from the source** if any chapter mentions characters by name:
    - Extract appearance descriptors from the prose (hair color, age range, distinctive features).
+   - **Always give each character an `id`** (slug-safe, lowercase, e.g. `thana`, `phim`, `pom`). The `id` lets per-chapter `visual_anchor.characters` reference them.
    - If the user has a "character bible" `.md` file alongside, READ THAT FIRST and use it verbatim.
+   - Optionally set `reference_image: "library://characters/<id>"` so IP-Adapter can lock the face across episodes (only effective if the user has actually dropped a PNG at `library/visuals/characters/<id>.png`; otherwise the field is harmless — the pipeline silently skips it).
+
+6. **Tag characters into each chapter's `visual_anchor.characters`** when they appear in the scene:
+   - List up to 4 character ids per chapter, e.g. `"characters": ["thana", "phim"]`.
+   - These ids let the pipeline pass their reference images to IP-Adapter at render time → same face every episode.
+   - If a character is mentioned in the narration but is **not visible in the visual anchor** (e.g. mentioned in a memory), do NOT add their id.
 
 6. **Write the JSON file** — same as Mode A step 6.
 
@@ -299,6 +306,8 @@ Read the target file first. Preserve everything FIXED + PER_SERIES. Only add to 
       "id": "ch_01",
       "title": "<หัวข้อตอน>",
       "visual_anchor": {
+        "characters": ["lead_male", "lead_female"],
+
         "prompt": "English scene description with cinematic adjectives",
         "save_to_library_as": "my-series_ep01_ch01",
         "motion": "static"
