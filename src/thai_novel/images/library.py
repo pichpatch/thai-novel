@@ -4,7 +4,7 @@ Reusable visual library.
 References use the `library://` URI scheme:
   library://backgrounds/cafe_rainy_night   ->  library/visuals/backgrounds/cafe_rainy_night.{png,jpg,webp}
   library://characters/female_lead_blush   ->  library/visuals/characters/female_lead_blush.png
-  library://music/cozy_piano_01            ->  library/audio/music/cozy_piano_01.{mp3,wav,ogg}
+  library://music/cozy_piano_01_ai            ->  library/audio/music/cozy_piano_01_ai.{mp3,wav,ogg}
 
 This module resolves refs to disk paths and promotes generated images into
 the library when `save_to_library_as` is set.

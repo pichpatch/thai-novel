@@ -176,7 +176,7 @@ class CharacterSpec(BaseModel):
 
 
 class MusicBed(BaseModel):
-    default: str | None = None                              # library://music/cozy_piano_01
+    default: str | None = None                              # library://music/cozy_piano_01_ai
     by_mood: dict[Mood, str] = Field(default_factory=dict)
     volume_db: float = -22.0
     crossfade_ms: int = 1500
@@ -307,7 +307,7 @@ class IntroConfig(BaseModel):
     welcome_duration_sec: float = 5.0
     title_narration: str | None = None                # auto: "ตอนที่ <n>: <title>"
     title_card_duration_sec: float = 4.5
-    background_music_ref: str | None = "library://music/intro_theme"
+    background_music_ref: str | None = "library://music/intro_theme_ai"
     logo_ref: str | None = "library://overlays/channel_logo"
     background_anchor: VisualAnchor | None = None     # optional: background image during welcome
 

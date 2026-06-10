@@ -151,24 +151,24 @@
         "_duck_explainer": "duck_during_dialogue_db: how much to drop music while narration plays. -6 to -8 dB is standard"
       },
       "music_bed": {
-        "default": "library://music/cozy_piano_01",
+        "default": "library://music/cozy_piano_01_ai",
         "by_mood": {
-          "funny": "library://music/playful_uke_01",
-          "romantic": "library://music/strings_warm_02",
-          "playful": "library://music/playful_uke_01",
-          "melancholy": "library://music/piano_rain_01"
+          "funny": "library://music/playful_uke_01_ai",
+          "romantic": "library://music/strings_warm_02_ai",
+          "playful": "library://music/playful_uke_01_ai",
+          "melancholy": "library://music/piano_rain_01_ai"
         },
         "volume_db": -22,
         "crossfade_ms": 1500,
         "duck_during_dialogue_db": -6
       },
       "ambience": {
-        "default": "library://ambience/rain_soft",
+        "default": "library://ambience/rain_soft_ai",
         "by_mood": {
-          "cozy": "library://ambience/cafe_quiet",
-          "funny": "library://ambience/cafe_quiet",
-          "romantic": "library://ambience/rain_soft",
-          "melancholy": "library://ambience/rain_window"
+          "cozy": "library://ambience/cafe_quiet_ai",
+          "funny": "library://ambience/cafe_quiet_ai",
+          "romantic": "library://ambience/rain_soft_ai",
+          "melancholy": "library://ambience/rain_window_ai"
         },
         "volume_db": -28
       }
@@ -202,7 +202,7 @@
       "channel_name": "T-H-A-I Novel",
       "welcome_duration_sec": 5,
       "title_card_duration_sec": 4.5,
-      "background_music_ref": "library://music/intro_theme",
+      "background_music_ref": "library://music/intro_theme_ai",
       "logo_ref": "library://overlays/channel_logo"
     },
     "chapters": [

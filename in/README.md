@@ -177,17 +177,17 @@ free-form; `male_lead` and `female_lead` are convention.
 ```jsonc
 {
   "music_bed": {
-    "default":   "library://music/cozy_piano_01",
+    "default":   "library://music/cozy_piano_01_ai",
     "by_mood": {
-      "romantic": "library://music/strings_warm_02",
-      "funny":    "library://music/playful_uke_01"
+      "romantic": "library://music/strings_warm_02_ai",
+      "funny":    "library://music/playful_uke_01_ai"
     },
     "volume_db": -22,
     "crossfade_ms": 1500,
     "duck_during_dialogue_db": -6   // sidechain duck during narration
   },
   "ambience": {
-    "default": "library://ambience/rain_soft",
+    "default": "library://ambience/rain_soft_ai",
     "volume_db": -28
   }
 }

@@ -8,5 +8,12 @@
     "piano_rain_01":   "melancholy mood",
     "intro_theme":     "channel intro background (under 'Welcome to channel THAI Novel')"
   },
+  "_ai_replacements": {
+    "cozy_piano_01_ai":   "original generated cozy piano bed; use as library://music/cozy_piano_01_ai",
+    "playful_uke_01_ai":  "original generated playful plucked bed; use as library://music/playful_uke_01_ai",
+    "strings_warm_02_ai": "original generated warm strings bed; use as library://music/strings_warm_02_ai",
+    "piano_rain_01_ai":   "original generated melancholy piano/rain bed; use as library://music/piano_rain_01_ai",
+    "intro_theme_ai":     "original generated intro theme; use as library://music/intro_theme_ai"
+  },
   "_notes": "Royalty-free sources: pixabay.com/music, freemusicarchive.org, incompetech.com (Kevin MacLeod). Match the cozy/romantic palette."
 }
