@@ -8,6 +8,7 @@ Takes the Remotion render (video + narration baked in) and adds:
   - SRT + chapter_markers exports
 
 Output: novels/<id>/output/final.mp4 + subtitles.srt + chapter_markers.txt
+        + description.txt
 """
 
 from __future__ import annotations
@@ -80,6 +81,32 @@ def write_chapter_markers(timeline: dict, out_path: Path) -> Path:
     return out_path
 
 
+def write_description(timeline: dict, out_path: Path) -> Path:
+    """YouTube description text from episode metadata."""
+    series = timeline.get("series") or timeline.get("title") or ""
+    episode = timeline.get("episode")
+    title = timeline.get("title") or ""
+    short_story = (timeline.get("short_description") or "").strip()
+
+    episode_line = (
+        f"ตอนที่ {episode} {title}"
+        if episode is not None else f"ตอน {title}".strip()
+    )
+    lines = [
+        f"เรื่อง {series}",
+        episode_line,
+        "",
+        short_story,
+        "",
+        "ขอบคุณที่รับฟังกันนะครับ",
+        "#นิยายเสียง ",
+        "",
+    ]
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text("\n".join(lines), encoding="utf-8")
+    return out_path
+
+
 async def finalize(
     remotion_mp4: Path,
     timeline: dict,
@@ -89,7 +116,7 @@ async def finalize(
     """
     Mux: video (from remotion_mp4) + music_bed (looped) + ambience (looped) + loudnorm.
 
-    Returns: {"mp4": Path, "srt": Path, "chapters_txt": Path}
+    Returns: {"mp4": Path, "srt": Path, "chapters_txt": Path, "description": Path}
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     final_mp4 = out_dir / "final.mp4"
@@ -176,10 +203,12 @@ async def finalize(
 
     srt_path = out_dir / "subtitles.srt"
     chap_path = out_dir / "chapter_markers.txt"
+    desc_path = out_dir / "description.txt"
     write_srt(timeline, project_root, srt_path)
     write_chapter_markers(timeline, chap_path)
+    write_description(timeline, desc_path)
 
-    return {"mp4": final_mp4, "srt": srt_path, "chapters_txt": chap_path}
+    return {"mp4": final_mp4, "srt": srt_path, "chapters_txt": chap_path, "description": desc_path}
 
 
-__all__ = ["finalize", "write_srt", "write_chapter_markers"]
+__all__ = ["finalize", "write_srt", "write_chapter_markers", "write_description"]

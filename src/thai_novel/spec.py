@@ -65,6 +65,7 @@ class Project(BaseModel):
     title: str
     series: str | None = None
     episode: int | None = None
+    short_description: str | None = None
     language: Literal["th"] = "th"
     theme: str | None = None
     resolution: str = "1920x1080"
@@ -114,16 +115,16 @@ class TTSConfig(BaseModel):
 
 
 class ImageGeneration(BaseModel):
-    engine: ImageEngine = "sdxl-lightning-4step"
+    engine: ImageEngine = "hyper-sdxl-8step"
     backend: ImageBackend = "mlx"
-    steps: int = 4
-    guidance: float = 1.5
+    steps: int = 8
+    guidance: float = 0
     seed: int | None = None
     # Per-spec: generate at 1024x576 (16:9 native), upscale to export resolution.
     gen_width: int = 1024
     gen_height: int = 576
     upscaler: Literal["realesrgan", "lanczos", "none"] = "realesrgan"
-    # Optional override of the SDXL base checkpoint. Used by `hyper-sdxl-4step`
+    # Optional override of the SDXL base checkpoint. Used by `hyper-sdxl-*step`
     # to point at an anime base (e.g. "cagliostrolab/animagine-xl-3.1").
     # Other engines ignore it.
     base_model: str | None = None

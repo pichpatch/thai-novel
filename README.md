@@ -119,6 +119,7 @@ That's it. ~2–5 minutes later you have:
 novels/devil-cafe-ep01/output/final.mp4
 novels/devil-cafe-ep01/output/subtitles.srt
 novels/devil-cafe-ep01/output/chapter_markers.txt
+novels/devil-cafe-ep01/output/description.txt
 ```
 
 ---
@@ -241,7 +242,7 @@ That's the only command 99% of the time. It:
 3. Resolves / generates visual anchors via SDXL Turbo (with library cache)
 4. Composes the video via ffmpeg
 5. Mixes music + ambience + loudness normalization
-6. Writes the final MP4
+6. Writes the final MP4 and YouTube helper files
 
 ### Output location
 
@@ -249,7 +250,21 @@ That's the only command 99% of the time. It:
 novels/<episode-id>/output/
 ├── final.mp4               ← the video you upload to YouTube
 ├── subtitles.srt           ← optional Thai captions
-└── chapter_markers.txt     ← paste into the YouTube description
+├── chapter_markers.txt     ← paste into the YouTube description
+└── description.txt         ← short YouTube description template
+```
+
+`description.txt` is generated from `project.series`, `project.episode`,
+`project.title`, and `project.short_description`:
+
+```text
+เรื่อง {series}
+ตอนที่ N {title}
+
+{short_description}
+
+ขอบคุณที่รับฟังกันนะครับ
+#นิยายเสียง 
 ```
 
 The `<episode-id>` comes from the `project.id` field in your JSON. For the bundled example: `novels/devil-cafe-ep01/output/final.mp4`.
@@ -434,10 +449,15 @@ Editing one paragraph re-synthesizes one sentence (~2s), rebuilds one segment (~
 ### Use the template
 
 ```bash
-cp in/template.example.json in/02_devil-cafe-ep02.json
-$EDITOR in/02_devil-cafe-ep02.json
+cp in/template.example.json in/ep02.json
+$EDITOR in/ep02.json
 ./generate
 ```
+
+Generated episode filenames should be plain `epNN.json` with a two-digit
+episode number only, such as `ep01.json` or `ep12.json`. Do not include the
+story title in the filename. The `project.id` inside the JSON still controls
+the output folder under `novels/`.
 
 The template (`in/template.example.json`) has **inline `_doc` comments on every field**, tagged by tier:
 
@@ -451,7 +471,7 @@ See `in/README.md` for the full field reference. Quick version:
 
 ```jsonc
 {
-  "project":    { "id": "...", "title": "...", "episode": N, "resolution": "1280x720", "fps": 24 },
+  "project":    { "id": "...", "title": "...", "episode": N, "short_description": "...", "resolution": "1280x720", "fps": 24 },
   "tts":        { "voice": "th-TH-NiwatNeural", "rate": "-10%", "mood_pauses": {...} },
   "characters": { "male_lead": {...}, "female_lead": {...} },
   "audio":      { "music_bed": {...}, "ambience": {...} },
@@ -480,8 +500,8 @@ Drop multiple `.json` files into `./in/`. They render sequentially:
 
 ```
 in/
-  01_episode-1.json    ← rendered first
-  02_episode-2.json    ← rendered second
+  ep01.json            ← rendered first
+  ep02.json            ← rendered second
   _draft.json          ← skipped (underscore prefix)
   template.example.json ← skipped (.example.json suffix)
 ```

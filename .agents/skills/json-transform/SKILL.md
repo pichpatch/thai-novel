@@ -5,7 +5,7 @@ description: Use when the user wants a thai-novel episode JSON spec — either C
 
 # json-transform
 
-You produce a valid episode JSON for the `./generate` pipeline in this project. Your output gets dropped into `./in/<name>.json` and the user renders it to MP4.
+You produce a valid episode JSON for the `./generate` pipeline in this project. Your output gets dropped into `./in/epNN.json` (for example `in/ep01.json`, `in/ep12.json`) and the user renders it to MP4.
 
 ## Two modes — detect which one the user wants
 
@@ -42,7 +42,7 @@ Skip these and you will invent FIXED values that contradict the channel's standa
 | --- | --- |
 | **FIXED** (voice, image gen, visual style, music palette, intro logo, subtitle config) | Copy from `in/template.example.json` or from a sibling `in/*.json`. NEVER invent these. |
 | **PER_SERIES** (characters, theme) | Copy from prior episode in same series. If none exists, ASK once. |
-| **PER_EPISODE** (`project.id`, `title`, `episode`, `chapters[]`, `end_card`) | This is where your work goes — invented in Mode A, mapped from sources in Mode B. |
+| **PER_EPISODE** (`project.id`, `title`, `episode`, `short_description`, `chapters[]`, `end_card`) | This is where your work goes — invented in Mode A, mapped from sources in Mode B. |
 
 ---
 
@@ -71,9 +71,17 @@ Skip these and you will invent FIXED values that contradict the channel's standa
    - English prompts. Slug-safe, series-prefixed `save_to_library_as`.
    - Before inventing a new prompt, check `library/visuals/backgrounds/` via Bash (`ls library/visuals/backgrounds/`) — if a matching scene exists, REUSE it via `ref://`.
 
-5. **End card**: next episode title + short Thai farewell.
+5. **Short description + end card**:
+   - Write `project.short_description` as one smooth Thai paragraph for YouTube.
+   - Keep it short: 2–4 sentences, no spoilers beyond the episode hook.
+   - It is exported to `novels/<id>/output/description.txt`.
+   - End card: next episode title + short Thai farewell.
 
-6. **Write the JSON file** to `in/<descriptive-slug>.json`.
+6. **Write the JSON file** to `in/epNN.json`.
+   - `NN` is the two-digit episode number from `project.episode`.
+   - Examples: episode 1 → `in/ep01.json`, episode 12 → `in/ep12.json`.
+   - Do **not** include the story title or descriptive slug in the filename.
+   - Keep `project.id` slug-safe and meaningful; the filename and `project.id` do not need to match.
 
 7. **Validate**: run `./novel validate <name>` (no `.json` extension). Must print "All specs valid."
 
@@ -204,8 +212,8 @@ Copy these from `in/template.example.json`. Don't change unless instructed:
 
 ```jsonc
 "image_generation": {
-  "engine":     "hyper-sdxl-4step",   // FIXED — fast SDXL distilled LoRA
-  "steps":      4,                     // FIXED — engine forces 4 anyway
+  "engine":     "hyper-sdxl-8step",   // FIXED — better quality SDXL distilled LoRA
+  "steps":      8,                     // FIXED — engine forces 8 anyway
   "guidance":   0,                     // FIXED — engine forces 0 anyway
   "seed":       <int>,                 // PER_EPISODE — pin for reproducibility
   "gen_width":  1280,                  // FIXED — 720p output
@@ -239,8 +247,9 @@ To override aesthetic, set `image_generation.base_model` to any SDXL repo id (e.
 
 ## Quality bar — self-check before declaring done (BOTH modes)
 
-- [ ] File path is `in/<name>.json` and does NOT end with `.example.json`
+- [ ] File path is `in/epNN.json` (two-digit episode number only) and does NOT end with `.example.json`
 - [ ] `project.id` is slug-safe, lowercase, series-prefixed
+- [ ] `project.short_description` is a smooth Thai YouTube description paragraph
 - [ ] Every chapter has `id`, `title`, `visual_anchor`, ≥1 `narration_blocks`
 - [ ] Every narration_block has `id`, `mood` (from strict list), `narration`
 - [ ] All narration is Thai prose — no English inside narration field
@@ -299,7 +308,9 @@ Read the target file first. Preserve everything FIXED + PER_SERIES. Only add to 
 {
   "project": {
     "id": "my-series-ep01",
-    "title": "ตอนที่ 1: <ชื่อตอน>"
+    "title": "ตอนที่ 1: <ชื่อตอน>",
+    "episode": 1,
+    "short_description": "เรื่องย่อสั้นภาษาไทยสำหรับ YouTube description ของตอนนี้"
   },
   "chapters": [
     {

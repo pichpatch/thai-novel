@@ -14,8 +14,8 @@ Both are skipped by auto-pick (the CLI ignores `*.example.json` and any file
 starting with `_`). To work from the template:
 
 ```bash
-cp in/template.example.json in/02_devil-cafe-ep02.json
-$EDITOR in/02_devil-cafe-ep02.json   # fill in PER_EPISODE fields
+cp in/template.example.json in/ep02.json
+$EDITOR in/ep02.json   # fill in PER_EPISODE fields
 ./generate
 ```
 
@@ -30,9 +30,9 @@ in **alphabetical order**, one episode at a time:
 
 ```
 in/
-  01_devil-cafe-ep01.json     ← rendered first
-  02_devil-cafe-ep02.json     ← rendered second
-  03_devil-cafe-ep03.json     ← rendered third
+  ep01.json                   ← rendered first
+  ep02.json                   ← rendered second
+  ep03.json                   ← rendered third
   _draft.json                 ← underscore-prefixed = ignored
 ```
 
@@ -54,8 +54,12 @@ CLI skips them without you having to delete or move them.
 See `example.json` for a complete worked example: ร้านกาแฟของคุณปีศาจ
 ตอนที่ 1, ~32 minutes, 5 chapters.
 
-Ask Cowork: *"fill in `in/02_my-episode.json` for ตอนที่ 2"* and it will
+Ask Cowork: *"fill in `in/ep02.json` for ตอนที่ 2"* and it will
 write the whole spec.
+
+Generated episode filenames should be plain `epNN.json` with a two-digit
+episode number only. Do not put the story title in the filename. The
+`project.id` inside the JSON still controls the output folder under `novels/`.
 
 ---
 
@@ -65,7 +69,7 @@ write the whole spec.
 | --- | --- | --- | --- |
 | `project` | object | yes | — |
 | `tts` | object | no | edge-tts / af_heart equivalent |
-| `image_generation` | object | no | sdxl-lightning-4step, MLX, 1024×576 |
+| `image_generation` | object | no | hyper-sdxl-8step, MLX, 1024×576 |
 | `visual_style` | object | no | cinematic romantic anime |
 | `characters` | dict | no | `{}` |
 | `audio` | object | no | rain ambience, cozy piano |
@@ -83,6 +87,7 @@ write the whole spec.
   "title": "...",                    // human-readable
   "series": "ร้านกาแฟของคุณปีศาจ",   // optional grouping
   "episode": 1,                      // optional
+  "short_description": "...",         // Thai YouTube description paragraph
   "language": "th",
   "theme": "romantic comedy fantasy",
   "resolution": "1920x1080",
@@ -115,10 +120,10 @@ Per-mood overrides let you slow down for romantic peaks and speed up for funny b
 
 ```jsonc
 {
-  "engine": "sdxl-lightning-4step",
+  "engine": "hyper-sdxl-8step",
   "backend": "mlx",                  // or "coreml", "diffusers-mps"
-  "steps": 4,                        // 4 = sweet spot for SDXL Turbo
-  "guidance": 1.5,
+  "steps": 8,                        // 8 = better quality; use hyper-sdxl-4step for drafts
+  "guidance": 0,
   "seed": 20240115,                  // pin for reproducibility
   "gen_width": 1024,                 // 16:9 native generation
   "gen_height": 576,
@@ -265,6 +270,19 @@ Color grades: `warm_cozy`, `cool_night`, `golden_hour`, `melancholy_blue`,
 That's it. The script regenerates everything, synthesizes narration, generates
 or looks up images, renders the video, and muxes the final MP4. Takes 8–12
 minutes cold on M2 Pro 32GB; 2–3 minutes warm (after editing).
+
+The render also writes `novels/<id>/output/description.txt`, ready to paste
+into YouTube:
+
+```text
+เรื่อง {series}
+ตอนที่ N {title}
+
+{short_description}
+
+ขอบคุณที่รับฟังกันนะครับ
+#นิยายเสียง 
+```
 
 ---
 

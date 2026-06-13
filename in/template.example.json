@@ -2,7 +2,7 @@
   {
     "_README": [
       "Template for one ThAI Novel episode. Drop a copy of this file into ./in/",
-      "(e.g. ./in/02_devil-cafe-ep02.json), fill in the PER_EPISODE fields, then",
+      "(e.g. ./in/ep02.json), fill in the PER_EPISODE fields, then",
       "run ./generate from the project root.",
       "",
       "Field-tier legend (used in _doc comments below):",
@@ -26,6 +26,7 @@
         "title": "PER_EPISODE | REQUIRED | shown on the title card + spoken in the intro narration",
         "series": "PER_SERIES  | OPTIONAL | groups episodes for batch-publishing tooling later",
         "episode": "PER_EPISODE | OPTIONAL | integer; used to build 'ตอนที่ N' if intro.title_narration is not set",
+        "short_description": "PER_EPISODE | REQUIRED | short Thai YouTube description paragraph. Exported to novels/<id>/output/description.txt",
         "language": "FIXED       | always 'th'",
         "theme": "PER_SERIES  | OPTIONAL | for your own reference; not used by the pipeline",
         "resolution": "FIXED       | '1280x720' is the sweet spot (~14 MB / 9 min). '1920x1080' is 3x bigger and ~30s slower",
@@ -35,6 +36,7 @@
       "title": "<ชื่อตอน>",
       "series": "ร้านกาแฟของคุณปีศาจ",
       "episode": 2,
+      "short_description": "<เรื่องย่อสั้นภาษาไทยสำหรับ YouTube description ของตอนนี้>",
       "language": "th",
       "theme": "romantic comedy fantasy — cozy slow-burn",
       "resolution": "1280x720",
@@ -81,7 +83,7 @@
     "image_generation": {
       "_doc": {
         "_intent": "FIXED — the channel's image-gen settings. The visual style across episodes should look consistent.",
-        "engine": "FIXED | engine choices: hyper-sdxl-4step (default, fast realistic/anime via tone) | sdxl-lightning-4step | sdxl-turbo | hyper-sdxl-8step (quality, ~2x slower) | z-image-turbo (very slow) | flux-schnell-4step (best quality, very slow, requires HF auth)",
+        "engine": "FIXED | engine choices: hyper-sdxl-8step (default, better realistic/anime quality) | hyper-sdxl-4step (faster draft) | sdxl-lightning-4step | sdxl-turbo | z-image-turbo (very slow) | flux-schnell-4step (best quality, very slow, requires HF auth)",
         "backend": "FIXED | 'mlx' is reserved; current implementation uses diffusers+MPS",
         "steps": "FIXED | distilled engines force their own step count internally (4 for *-4step variants, 8 for *-8step). Value here is advisory.",
         "guidance": "FIXED | distilled engines force guidance=0 internally. Value here is advisory.",
@@ -91,9 +93,9 @@
         "upscaler": "FIXED | 'realesrgan' (sharper) or 'lanczos' (fastest, basic). Falls back automatically.",
         "base_model": "OPTIONAL | overrides the tone-default. Set to e.g. 'cagliostrolab/animagine-xl-3.1' for anime, 'John6666/pony-diffusion-v6-xl-sdxl-spo' for Pony (auto-injects score tags), or any SDXL repo id."
       },
-      "engine": "hyper-sdxl-4step",
+      "engine": "hyper-sdxl-8step",
       "backend": "mlx",
-      "steps": 4,
+      "steps": 8,
       "guidance": 0,
       "seed": 20240115,
       "gen_width": 1280,

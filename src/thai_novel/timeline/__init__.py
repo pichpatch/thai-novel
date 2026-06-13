@@ -160,6 +160,8 @@ def compile_timeline(
         "episode_id": episode.project.id,
         "title": episode.project.title,
         "series": episode.project.series,
+        "episode": episode.project.episode,
+        "short_description": episode.project.short_description,
         "language": episode.project.language,
         "width": episode.project.width,
         "height": episode.project.height,

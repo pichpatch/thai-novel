@@ -93,7 +93,8 @@ thai-novel/
 │   ├── output/
 │   │   ├── final.mp4              # THE FINAL VIDEO
 │   │   ├── subtitles.srt          # for YT manual captions
-│   │   └── chapter_markers.txt    # paste into YT description
+│   │   ├── chapter_markers.txt    # paste into YT description
+│   │   └── description.txt        # YouTube description template
 │   └── _work/                     # intermediate raw.mp4 (pre-mux)
 │
 ├── library/                       # reusable, user-curated assets (NEVER deleted by ./clean)
@@ -141,7 +142,7 @@ thai-novel/
 │   │   ├── __init__.py            # compose_video()
 │   │   └── cards.py               # PIL renderers for logo/title/chapter/end cards
 │   └── encode/                    # Stage 5
-│       └── __init__.py            # finalize() — mux + loudnorm + SRT + chapter_markers
+│       └── __init__.py            # finalize() — mux + loudnorm + SRT + chapter_markers + description
 │
 ├── .claude/skills/
 │   └── json-transform/
@@ -204,7 +205,7 @@ The full schema lives in `src/thai_novel/spec.py`. Quick reference:
 
 ```jsonc
 {
-  "project":          { "id", "title", "episode?", "series?", "resolution", "fps", ... },
+  "project":          { "id", "title", "episode?", "series?", "short_description", "resolution", "fps", ... },
   "tts":              { "voice", "rate", "pitch", "mood_pauses", ... },           // FIXED
   "image_generation": { "engine", "steps", "guidance", "seed", "gen_*", ... },   // FIXED
   "visual_style":     { "base_prompt", "negative_prompt", "color_grade" },        // FIXED
