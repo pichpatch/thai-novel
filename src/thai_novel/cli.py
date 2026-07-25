@@ -8,8 +8,10 @@ or as `python -m thai_novel <verb>` / `thai-novel <verb>`.
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
+import re
 import shutil
 import subprocess
 import sys
@@ -25,7 +27,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeEl
 from rich.table import Table
 
 from . import __version__
-from .spec import Episode, load_episodes
+from .spec import Episode, load_episodes, load_story_bible
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -75,9 +77,14 @@ def _resolve_inputs(id_or_path: str | None) -> list[Path]:
         # Auto-skip:
         #   - underscore-prefixed (archived/disabled specs)
         #   - *.example.json (template files — by convention)
+        #   - ep0.json (story bible / AI handoff, not renderable)
         candidates = sorted(
             p for p in IN_DIR.glob("*.json")
-            if not p.name.startswith("_") and not p.stem.endswith(".example")
+            if (
+                not p.name.startswith("_")
+                and not p.stem.endswith(".example")
+                and p.name != "ep0.json"
+            )
         )
         if not candidates:
             err_console.print(
@@ -124,6 +131,9 @@ def _load_all_episodes(id_or_path: str | None) -> list[tuple[Path, Episode]]:
                 )
             )
             raise typer.Exit(1)
+        except ValueError as e:
+            err_console.print(f"[red]ERROR:[/red] {e}")
+            raise typer.Exit(1)
     if not flat:
         err_console.print("[red]ERROR:[/red] no episodes found across the given JSONs.")
         raise typer.Exit(1)
@@ -147,6 +157,110 @@ def _summary_table(episodes: list[Episode]) -> Table:
             f"{ep.total_narration_chars:,}", f"{ep.estimated_duration_sec:.0f}s",
         )
     return t
+
+
+def _episode_number(ep: Episode, fallback: int) -> int:
+    return ep.project.episode if ep.project.episode is not None else fallback
+
+
+def _episode_label(ep: Episode, fallback: int) -> str:
+    n = _episode_number(ep, fallback)
+    return f"ตอนที่ {n} {ep.project.title}"
+
+
+def _series_slug(ep: Episode) -> str:
+    """Use project.id as the ASCII-safe source for publication group ids."""
+    return re.sub(r"[-_]?ep\d+$", "", ep.project.id) or ep.project.id
+
+
+def _make_group_episode(items: list[tuple[Path, Episode]], group_index: int) -> Episode:
+    """
+    Combine up to 10 source episodes into one publication video.
+
+    New workflow rule: one source episode becomes one visual chapter in the
+    grouped video, so a 10-episode video contains 10 generated/library images.
+    If a legacy source episode has multiple chapters, their narration blocks
+    are flattened under the first chapter's visual anchor.
+    """
+    first = items[0][1]
+    last = items[-1][1]
+    first_no = _episode_number(first, group_index * 10 + 1)
+    last_no = _episode_number(last, first_no + len(items) - 1)
+    base_slug = _series_slug(first)
+    group_id = f"{base_slug}-ep{first_no:02d}-ep{last_no:02d}"
+
+    ep_dict = first.model_dump(mode="json")
+    ep_dict["project"] = {
+        **ep_dict["project"],
+        "id": group_id,
+        "title": f"ตอนที่ {first_no}-{last_no}",
+        "episode": first_no,
+        "short_description": "\n\n".join(
+            f"{_episode_label(ep, i + 1)}\n{(ep.project.short_description or '').strip()}"
+            for i, (_, ep) in enumerate(items)
+        ).strip(),
+        "target_duration_min": sum(
+            ep.project.target_duration_min or 0 for _, ep in items
+        ) or None,
+    }
+
+    # One intro and one end card for the whole publication group.
+    ep_dict["intro"] = copy.deepcopy(first.intro.model_dump(mode="json"))
+    ep_dict["intro"]["title_narration"] = (
+        f"{first.project.series} ตอนที่ {first_no} ถึง {last_no}"
+        if first.project.series else f"ตอนที่ {first_no} ถึง {last_no}"
+    )
+
+    chapters = []
+    for source_idx, (_, source_ep) in enumerate(items, start=1):
+        source_no = _episode_number(source_ep, source_idx)
+        first_chapter = source_ep.chapters[0]
+        narration_blocks = []
+        block_idx = 1
+        for source_chapter in source_ep.chapters:
+            for block in source_chapter.narration_blocks:
+                block_data = block.model_dump(mode="json")
+                block_data["id"] = f"ep{source_no:02d}_b{block_idx}"
+                # Publication groups enforce one image per source episode.
+                block_data["anchor_override"] = None
+                narration_blocks.append(block_data)
+                block_idx += 1
+        chapters.append({
+            "id": f"ep_{source_no:02d}",
+            "title": _episode_label(source_ep, source_idx),
+            "show_title_card": False,
+            "title_card_duration_sec": 4,
+            "visual_anchor": first_chapter.visual_anchor.model_dump(
+                mode="json", exclude_none=True
+            ),
+            "narration_blocks": narration_blocks,
+        })
+
+    ep_dict["chapters"] = chapters
+    base_end_card = last.end_card or first.end_card
+    ep_dict["end_card"] = (
+        copy.deepcopy(base_end_card.model_dump(mode="json"))
+        if base_end_card else {"show": True, "duration_sec": 8}
+    )
+    next_no = last_no + 1
+    ep_dict["end_card"]["next_episode_title"] = f"ตอนที่ {next_no}"
+    ep_dict["end_card"]["message"] = "ขอบคุณที่รับฟังกันนะครับ"
+
+    return Episode.model_validate(ep_dict)
+
+
+def _group_for_publication(
+    pairs: list[tuple[Path, Episode]],
+    group_size: int,
+) -> list[tuple[Path, Episode]]:
+    if group_size <= 1 or len(pairs) <= 1:
+        return pairs
+    grouped: list[tuple[Path, Episode]] = []
+    for i in range(0, len(pairs), group_size):
+        chunk = pairs[i:i + group_size]
+        group_ep = _make_group_episode(chunk, group_index=i // group_size)
+        grouped.append((chunk[0][0], group_ep))
+    return grouped
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -218,6 +332,21 @@ def validate(
     id_or_path: Annotated[str | None, typer.Argument(help="Episode id or path. Default: auto-pick.")] = None,
 ) -> None:
     """Validate the JSON spec(s) without rendering. Batches all in/*.json by default."""
+    if id_or_path is not None:
+        paths = _resolve_inputs(id_or_path)
+        if len(paths) == 1:
+            try:
+                bible = load_story_bible(paths[0])
+            except ValueError:
+                pass
+            else:
+                console.print(f"Reading [cyan]{paths[0].relative_to(PROJECT_ROOT)}[/cyan]")
+                console.print(
+                    f"[green]Story bible valid.[/green] "
+                    f"{bible.series} — {len(bible.episode_plan)} planned episode(s)"
+                )
+                return
+
     pairs = _load_all_episodes(id_or_path)
     paths_seen: list[Path] = []
     for p, _ in pairs:
@@ -247,6 +376,11 @@ def validate(
                 f"  [yellow]{ep.project.id}[/yellow]: {ep.anchor_count} unique anchors. "
                 f"Target ≤15."
             )
+        if ep.anchor_count > 1:
+            warnings.append(
+                f"  [yellow]{ep.project.id}[/yellow]: {ep.anchor_count} unique anchors. "
+                "New workflow target is exactly 1 image per episode."
+            )
     if warnings:
         console.print("\n[yellow]Pacing warnings:[/yellow]")
         for w in warnings:
@@ -258,7 +392,7 @@ def validate(
 @app.command()
 def new(
     id_: Annotated[str, typer.Argument(help="Episode id (slug-safe).")],
-    from_: Annotated[str, typer.Option("--from", help="Template name to copy.")] = "example",
+    from_: Annotated[str, typer.Option("--from", help="Template name to copy.")] = "template.example",
 ) -> None:
     """Scaffold a new episode JSON in ./in/ from a template."""
     template = IN_DIR / f"{from_}.json"
@@ -361,20 +495,25 @@ def render(
     skip_images: Annotated[bool, typer.Option(help="Skip image resolution (cache must exist).")] = False,
     verbose: Annotated[bool, typer.Option("--verbose", "-v")] = False,
     stop_on_error: Annotated[bool, typer.Option(help="Stop the batch on the first failure.")] = False,
+    group_size: Annotated[int, typer.Option(help="Maximum source episodes per output video. Use 1 for one MP4 per episode.")] = 10,
 ) -> None:
     """
     Build every episode end-to-end: narrate → images → timeline → compose → mux.
 
-    BATCH MODE: with no argument, processes EVERY .json in ./in/ sequentially
-    (one episode at a time, since each render already saturates 3 workers).
-    Each JSON can itself contain a single Episode or an array of Episodes —
-    both forms are flattened into one queue.
+    BATCH MODE: with multiple source episodes, render publication groups of up
+    to --group-size episodes per MP4. Default is 10, so ep01..ep10 become one
+    video with 10 episode images and 10 YouTube-description entries.
 
     Failure handling: a failed episode is reported but the batch continues
     unless --stop-on-error is set. A summary table is printed at the end.
     """
+    if group_size < 1 or group_size > 10:
+        err_console.print("[red]ERROR:[/red] --group-size must be between 1 and 10.")
+        raise typer.Exit(1)
+
     _setup_logging(verbose)
-    pairs = _load_all_episodes(id_or_path)
+    source_pairs = _load_all_episodes(id_or_path)
+    pairs = _group_for_publication(source_pairs, group_size)
 
     from .narration import narrate_episode
     from .images import resolve_episode
@@ -383,10 +522,11 @@ def render(
     from .encode import finalize
 
     # ── Queue summary ────────────────────────────────────────────────────────
-    if len(pairs) > 1:
+    if len(source_pairs) > 1:
         console.print(
             Panel.fit(
-                f"[bold]batch render[/bold]: {len(pairs)} episodes queued\n"
+                f"[bold]batch render[/bold]: {len(source_pairs)} source episodes → "
+                f"{len(pairs)} publication video(s), max {group_size} episodes each\n"
                 + "\n".join(
                     f"  {i+1}. [cyan]{ep.project.id}[/cyan] — {ep.project.title}"
                     for i, (_, ep) in enumerate(pairs)

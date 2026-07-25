@@ -2,15 +2,17 @@
 
 Read by any AI assistant working on this project. Read top to bottom on session start; it covers what the project is, the current architecture, the decisions you must not undo, and the authoring rules.
 
-> **TL;DR.** Cinematic Thai audiobook pipeline. JSON spec in `./in/` → `./generate` → MP4 at `novels/<id>/output/final.mp4`. Pure Python + ffmpeg, no Node, no Chrome. Edge-tts for narration, SDXL Turbo via diffusers+MPS for images, libx264 for encoding. Default render: 1280×720 @ 24 fps, ~14 MB per 9-min episode, ~3 min cold render on M2 Pro 32 GB.
+> **TL;DR.** Cinematic Thai audiobook pipeline. `in/ep0.json` is the non-rendered story bible and prompt handoff. `in/epNN.json` files are source episodes with exactly one image each. `./generate` groups up to 10 source episodes into one MP4 at `novels/<series>-ep01-ep10/output/final.mp4`. Pure Python + ffmpeg, no Node, no Chrome. Edge-tts for narration, OpenAI/Codex-generated library images by workflow, local SDXL as fallback, libx264 for encoding.
 
 ---
 
 ## 1. What this project IS
 
 - A **cinematic Thai audiobook pipeline**, not animation.
-- Output: 30–40 min YouTube-bound MP4s, default 1280×720 @ 24 fps.
-- Narration + atmosphere are the product. Visuals are **cinematic anchors** that hold the screen for 2–5 minutes each.
+- Output: YouTube-bound MP4s, default 1280×720 @ 24 fps, with up to 10 source episodes per publication video.
+- Narration + atmosphere are the product. Visuals are **one cinematic anchor per source episode**.
+- New-story workflow: one shared poster for YouTube posts, then one OpenAI/Codex-generated image per episode saved into `library/visuals/backgrounds/`.
+- In grouped videos, the poster is not the only video image; the video changes to the current episode image at each episode boundary.
 - Target: **MacBook Pro Apple Silicon, M2 Pro 32 GB**. Everything runs locally.
 
 ## What this project is NOT
@@ -25,14 +27,14 @@ Read by any AI assistant working on this project. Read top to bottom on session 
 ## 2. Architecture — 5 stages, pure Python + ffmpeg
 
 ```
-JSON spec
+ep0 story bible + epNN JSON specs
    │
    ├──► Stage 1  Narrate         edge-tts, 3 parallel, content-cached per sentence
    │              pythainlp segmentation + mood-aware pauses + loudnorm
    │              → cache/<id>/blocks/*.wav
    │
-   ├──► Stage 2  Images          SDXL Turbo via diffusers+MPS (~5s/image on M2 Pro)
-   │              Smart library short-circuit: same prompt+seed+style → reuse
+   ├──► Stage 2  Images          OpenAI/Codex-generated library refs by default
+   │              Local SDXL fallback via diffusers+MPS when JSON uses prompt
    │              → cache/<id>/anchors/*.png  (and promotions to library/)
    │
    ├──► Stage 3  Compile timeline    Python dataframe-y shaping
@@ -61,7 +63,9 @@ These come from rounds of "we tried it and learned":
 | **No Remotion, no Node, no Chrome** | Was using Remotion 4.x for compositing. Removed because: (a) Chrome rendering was 10× slower than ffmpeg for static images, (b) `calculateMetadata` was unreliable across point releases, (c) `node_modules/` added 700 MB. Pure ffmpeg gets us to ~3 min renders. `package.json`, `tsconfig.json`, `remotion.config.ts`, `remotion/`, `scripts/render.mjs` — all deleted. **Don't add them back.** |
 | **libx264 crf 28 tune=stillimage, NOT VideoToolbox** | VideoToolbox is 3× faster but produces visibly muddy output at the bitrates we target (~7 MB/min). libx264 with `tune=stillimage` is purpose-built for slow-motion content and looks materially better. |
 | **Default resolution: 1280×720 @ 24 fps** | 1080p30 produced 400+ MB files and added ~30s of render. 720p24 with static frames lands at ~14 MB for 9 minutes. Bump to 1920×1080 in JSON if needed. |
-| **All chapter images: `motion: "static"`** | The composer (Stage 4) **does not implement motion**. The field is kept in the schema for future, but currently every preset (`slow_zoom_in`, etc.) renders identically to `static`. Setting motion has zero render effect today — just keeps the spec future-proof. |
+| **One image per source episode** | New workflow: each `epNN.json` has exactly one chapter and one visual anchor. `./generate` groups up to 10 source episodes, so a publication video contains up to 10 episode images. |
+| **Grouped video sequence** | Start with spoken welcome `ยินดีต้อนรับเข้าสู่ช่อง T H A I channel ขอให้สนุกกับการรับฟังครับ` while showing the channel image. Then for each source episode: speak `เรื่อง {story_name} ตอนที่ N {ep_title}`, show that episode's image, and read that episode's narration. Repeat through at most 10 episodes. |
+| **All images: `motion: "static"`** | The composer (Stage 4) **does not implement motion**. The field is kept in the schema for future, but currently every preset (`slow_zoom_in`, etc.) renders identically to `static`. Setting motion has zero render effect today — just keeps the spec future-proof. |
 | **Subtitles default OFF** | `subtitles.enabled = false` in schema default + example. Overlay text crowded the cinematic frames. SRT is still exported next to `final.mp4` (upload as YT captions). |
 | **Chapter title cards default OFF** | `Chapter.show_title_card = false`. This is an AUDIOBOOK — listeners are not looking at the screen, so a silent ~4s card between chapters is dead air. A previous attempt to narrate the chapter title on top of the card was rolled back: the user explicitly wants chapter transitions to be seamless audio. Keep chapter count low rather than re-enabling the card. Set `true` per chapter only for deliberate visual interludes. |
 | **Logo welcome card: full-screen edge-to-edge** | `render_logo_splash` uses cover semantics — scales the logo to fill the entire 720×1280 frame. The user's 1672×941 logo is 16:9, so it fills cleanly with no crop. No gradient backdrop, no welcome text. |
@@ -85,9 +89,10 @@ thai-novel/
 ├── .gitignore                     # cache/, models/, in/, library/visuals/backgrounds/, etc.
 │
 ├── in/                            # your JSON specs go here
+│   ├── ep0.json                   # StoryBible: whole-story summary + poster/episode prompts, skipped by render
 │   ├── README.md                  # field-by-field schema reference
 │   ├── template.example.json      # annotated template with FIXED/PER_SERIES/PER_EPISODE _doc tags
-│   └── <your-episode>.json        # what you author
+│   └── epNN.json                  # renderable source episode, exactly one image/chapter
 │
 ├── novels/<id>/                   # per-episode outputs (gitignored)
 │   ├── output/
@@ -164,7 +169,8 @@ thai-novel/
 The one command 99% of the time:
 
 ```bash
-./generate [<id>]                 # full pipeline, batch all in/*.json if no arg
+./generate [<id>]                 # full pipeline, batches active epNN into groups of up to 10
+./generate --group-size 1         # one MP4 per source episode
 ./generate --skip-narrate         # text unchanged → skip Stage 1
 ./generate --skip-images          # images unchanged → skip Stage 2
 ```
@@ -194,6 +200,7 @@ Cleanup:
 The CLI auto-skips files in `./in/` whose name:
 - starts with `_` (archived/disabled), e.g. `_old-draft.json`
 - ends with `.example.json` (templates), e.g. `template.example.json`
+- is exactly `ep0.json` (story bible / prompt handoff, not renderable)
 
 ---
 
@@ -279,15 +286,21 @@ The composer (Stage 4) ignores motion in the current build. All chapter images r
 
 2. **Narration blocks: 1500–3000 Thai chars.** Shorter = choppy. Longer = retention drops. `./novel validate` warns at <800 or >4000.
 
-3. **One visual anchor per chapter by default.** Per-block `anchor_override` exists for emotional peaks (romantic close-ups, cut-aways to objects, time-of-day shifts) but should be ≤4 per episode total.
+3. **One visual anchor per source episode.** Each `epNN.json` should have exactly one chapter and one visual anchor. Put multiple narration blocks under that chapter when needed.
 
-4. **Prefer `ref: "library://..."` over fresh `prompt`.** Library reuse is the success metric. By episode 5 you should be generating ≤3 new anchors per episode.
+4. **Prefer `ref: "library://..."` over fresh `prompt`.** New workflow uses OpenAI/Codex-generated images saved to `library/visuals/backgrounds/<series-slug>_epNN.png`, then referenced as `library://backgrounds/<series-slug>_epNN`.
 
-5. **Total unique anchors per episode: 5–15.** More than that and art-style drift + SDXL cost become problems.
+5. **Total unique anchors per source episode: exactly 1.** Publication videos may contain up to 10 images because they group up to 10 source episodes.
+
+   Grouped publication video flow:
+   - Welcome narration: `ยินดีต้อนรับเข้าสู่ช่อง T H A I channel ขอให้สนุกกับการรับฟังครับ`; visual is the channel image/logo.
+   - Episode title narration: `เรื่อง {story_name} ตอนที่ N {ep_title}`.
+   - Episode narration: show `library://backgrounds/<series-slug>_epNN` while reading.
+   - Repeat title + episode image + narration for the next episode until the 10-episode group ends.
 
 6. **Image prompts are English; narration is Thai.** Don't mix.
 
-7. **Series-prefixed `save_to_library_as` slugs.** `shadow-dynasty_ep45_klongtoey_alley_night`, not `cafe`. Prevents collisions across series.
+7. **Series-prefixed image slugs.** `shadow_dynasty_ep45`, not `cafe`. Prevents collisions across series.
 
 8. **Don't auto-run `./generate`.** The user invokes renders; AI assistants write the JSON.
 
@@ -369,7 +382,8 @@ In this order:
 4. **`in/README.md`** — field-by-field schema reference
 5. **`.claude/skills/json-transform/SKILL.md`** — the authoring skill (read before helping with episode JSON)
 6. **`src/thai_novel/spec.py`** — Pydantic source of truth, including the `_normalize_episode_dict()` aliases
-7. **Any existing `in/*.json` (non-`.example.json`)** — for series-voice and character continuity
+7. **`in/ep0.json` if present** — story bible and prompt handoff
+8. **Any existing `in/epNN.json`** — for series-voice and character continuity
 
 ---
 

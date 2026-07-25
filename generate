@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # ./generate — one-shot: JSON in ./in/ → MP4 in ./novels/<id>/output/final.mp4
 #
-# Auto-bootstraps ./.venv and node_modules/ on first run, then runs the
-# full pipeline (narrate → images → timeline → Remotion → mux) and exits.
+# Auto-bootstraps ./.venv on first run, then runs the full Python+ffmpeg
+# pipeline (narrate → images → timeline → compose → mux) and exits.
+# With multiple epNN.json files, render groups up to 10 source episodes per MP4.
 #
 # About "activation" — there's nothing to activate or deactivate. We invoke
 # .venv/bin/thai-novel by its absolute path, so the venv's Python is used
@@ -10,7 +11,7 @@
 # shell is exactly the same as before you ran it.
 #
 # Usage:
-#   ./generate                  # auto-pick the single in/*.json
+#   ./generate                  # auto-pick active epNN.json files and group by 10
 #   ./generate devil-cafe-ep01  # pick a specific episode id
 #   ./generate in/foo.json      # or an explicit path
 #   ./generate --test <id>      # A/B render <id> with every image engine,

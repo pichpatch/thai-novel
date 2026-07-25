@@ -5,12 +5,11 @@
 #   cache/                  narration WAVs, image cache, remotion bundle
 #   novels/<id>/output/     final MP4s, SRTs, chapter markers
 #   novels/<id>/_work/      intermediate raw renders
-#   remotion/public/        materialized asset mirrors (regen on next render)
+#   remotion/public/        legacy empty folder, kept only for old checkouts
 #
 # Preserves (expensive to recreate / valuable content):
 #   models/                       SDXL Turbo + diffusers weights (~6.5 GB)
 #   .venv/                        Python venv
-#   node_modules/                 npm install
 #   library/                      ALL user-curated assets — music, logo,
 #                                 AND promoted backgrounds (real SDXL images
 #                                 that took GPU time to generate). Never
@@ -64,7 +63,7 @@ done
 
 # ── 1. Detect in-flight render and offer to kill ────────────────────────────
 # Two things to look for:
-#   (a) the parent node scripts/render.mjs process
+#   (a) any stale legacy Remotion process
 #   (b) any python ./novel render still running
 render_pids=$(pgrep -f 'scripts/render.mjs|thai-novel render|novel render' 2>/dev/null || true)
 chrome_pids=$(pgrep -f 'node_modules/.remotion/chrome-headless-shell' 2>/dev/null || true)

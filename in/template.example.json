@@ -1,9 +1,14 @@
 [
   {
     "_README": [
-      "Template for one ThAI Novel episode. Drop a copy of this file into ./in/",
-      "(e.g. ./in/ep02.json), fill in the PER_EPISODE fields, then",
-      "run ./generate from the project root.",
+      "Template for one ThAI Novel episode. New workflow: one photo per episode.",
+      "Drop a copy of this file into ./in/ as epNN.json, fill in the PER_EPISODE",
+      "fields, then run ./generate from the project root. Auto batch render groups",
+      "up to 10 epNN files into one publication video.",
+      "",
+      "in/ep0.json is reserved for the story bible: whole-story summary, poster",
+      "prompt, per-episode image prompts, and notes for other AI agents. It is",
+      "validated separately and skipped by render.",
       "",
       "Field-tier legend (used in _doc comments below):",
       "  FIXED        Set once per CHANNEL. Don't change between episodes.",
@@ -11,7 +16,7 @@
       "  PER_SERIES   Set once per SERIES. Shared by all episodes in the same series.",
       "                Characters, theme, series-level visual prompts.",
       "  PER_EPISODE  Changes EVERY episode. This is where the story lives.",
-      "                Episode id, title, chapters, narration_blocks, end_card.",
+      "                Episode id, title, one chapter, narration_blocks, end_card.",
       "  OPTIONAL     Has a sensible default — omit if you don't need it.",
       "",
       "All fields starting with _ (like _README, _doc, _note) are pure comments.",
@@ -22,7 +27,7 @@
     ],
     "project": {
       "_doc": {
-        "id": "PER_EPISODE | REQUIRED | slug-safe (a-z, 0-9, -, _). Becomes the output filename: novels/<id>/output/final.mp4",
+        "id": "PER_EPISODE | REQUIRED | slug-safe (a-z, 0-9, -, _). For source episodes use <series-slug>-epNN; grouped output becomes <series-slug>-ep01-ep10.",
         "title": "PER_EPISODE | REQUIRED | shown on the title card + spoken in the intro narration",
         "series": "PER_SERIES  | OPTIONAL | groups episodes for batch-publishing tooling later",
         "episode": "PER_EPISODE | OPTIONAL | integer; used to build 'ตอนที่ N' if intro.title_narration is not set",
@@ -32,10 +37,10 @@
         "resolution": "FIXED       | '1280x720' is the sweet spot (~14 MB / 9 min). '1920x1080' is 3x bigger and ~30s slower",
         "target_duration_min": "PER_EPISODE | OPTIONAL | advisory only — actual duration comes from real audio length"
       },
-      "id": "devil-cafe-ep_xx",
+      "id": "story-slug-ep01",
       "title": "<ชื่อตอน>",
-      "series": "ร้านกาแฟของคุณปีศาจ",
-      "episode": 2,
+      "series": "<ชื่อเรื่อง>",
+      "episode": 1,
       "short_description": "<เรื่องย่อสั้นภาษาไทยสำหรับ YouTube description ของตอนนี้>",
       "language": "th",
       "theme": "romantic comedy fantasy — cozy slow-burn",
@@ -211,8 +216,9 @@
       {
         "_doc": [
           "PER_EPISODE — this is where the story lives.",
-          "Aim for 4–6 chapters per 30-minute episode. Each chapter = one visual anchor + 1–3 narration blocks.",
-          "Chapter id must be slug-safe: 'ch_01', 'ch_02', ...",
+          "NEW WORKFLOW: exactly 1 chapter per source episode. That chapter owns the episode's only photo.",
+          "Use multiple narration_blocks inside this one chapter when the episode is long or mood changes.",
+          "Chapter id should stay 'ch_01'.",
           "show_title_card: default FALSE — this is an audiobook, so silent title cards between chapters are dead air. Set true only for deliberate visual interludes."
         ],
         "id": "ch_01",
@@ -223,20 +229,19 @@
           "_doc": [
             "Pick ONE: 'prompt' (generate new) OR 'ref' (reuse from library). Never both.",
             "",
-            "Option A — generate + promote (first time you use this scene):",
+            "Preferred new workflow — OpenAI/Codex generates the episode image first:",
+            "  Save the image as library/visuals/backgrounds/<series-slug>_epNN.png",
+            "  Then use ref: 'library://backgrounds/<series-slug>_epNN'",
+            "",
+            "Fallback workflow — local SDXL generation:",
             "  prompt: English description for SDXL",
             "  save_to_library_as: slug-safe name. Image gets saved to library/visuals/backgrounds/<name>.png",
-            "  Next episode can then use ref: 'library://backgrounds/<name>'",
-            "",
-            "Option B — reuse an existing library image (preferred — keeps style consistent):",
-            "  ref: 'library://backgrounds/<name>'  (no prompt)",
             "",
             "motion: kept for future use. Currently the composer ignores it — all chapter images are static.",
             "color_grade: per-anchor override of visual_style.color_grade. Optional.",
             "characters (NEW, OPTIONAL): list of up to 4 character ids appearing in this scene. Each id must match a key OR an explicit `id` field in episode.characters. When any listed character has a reference_image, IP-Adapter conditions on it for face consistency."
           ],
-          "prompt": "<English prompt for SDXL Turbo — specific scene description with mood>",
-          "save_to_library_as": "<slug-safe-name>",
+          "ref": "library://backgrounds/story-slug_ep01",
           "motion": "static",
           "color_grade": "warm_cozy",
           "characters": [
@@ -259,32 +264,11 @@
             "narration": "<Thai narration text — 1500–3000 chars. Describe atmosphere, emotions, small physical details. Use ๆ for repetition. Avoid English words.>"
           },
           {
-            "_doc": "OPTIONAL second block in the same chapter. Lets you shift mood mid-chapter (e.g. melancholy → cozy) without changing the visual anchor.",
+            "_doc": "OPTIONAL second block in the same episode. Mood may shift, but the photo stays the same.",
             "id": "ch01_b2",
             "mood": "cozy",
             "duration_hint_sec": 150,
             "narration": "<Thai narration text — continues the same chapter under a different mood.>"
-          }
-        ]
-      },
-      {
-        "_doc": "Second chapter — pattern repeats. Reuse a library anchor when the scene returns to a known location.",
-        "id": "ch_02",
-        "title": "<หัวข้อตอนที่สอง>",
-        "show_title_card": false,
-        "title_card_duration_sec": 4,
-        "visual_anchor": {
-          "_doc": "Example of REUSING a library anchor. Pretend ch_01 of episode 1 already promoted 'cafe_rainy_night_exterior'.",
-          "ref": "library://backgrounds/cafe_rainy_night_exterior",
-          "motion": "static",
-          "color_grade": "warm_cozy"
-        },
-        "narration_blocks": [
-          {
-            "id": "ch02_b1",
-            "mood": "romantic",
-            "duration_hint_sec": 200,
-            "narration": "<Thai narration text.>"
           }
         ]
       }

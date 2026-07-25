@@ -20,7 +20,7 @@ def compile_timeline(
     project_root: Path,
 ) -> Path:
     """
-    Build the timeline.json that Remotion reads.
+    Build the timeline.json that the pure-ffmpeg composer reads.
 
     Layout:
       [0,           W]       intro welcome card

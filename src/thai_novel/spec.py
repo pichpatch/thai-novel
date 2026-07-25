@@ -5,6 +5,10 @@ The JSON in `in/*.json` is either:
   - a single Episode object, OR
   - a list of Episode objects (batch mode — render N episodes in one run)
 
+`in/ep0.json` is reserved for a StoryBible object. It is used as the
+whole-story summary and image-prompt handoff for other AI agents, and is not
+rendered by the video pipeline.
+
 See in/example.json for a complete worked example,
 and docs/JSON_SCHEMA.md for the field-by-field reference.
 
@@ -369,6 +373,35 @@ class Episode(BaseModel):
         return len(unique)
 
 
+class StoryBibleEpisode(BaseModel):
+    episode: int
+    title: str
+    short_description: str
+    image_prompt: str
+    narration_prompt: str | None = None
+
+
+class StoryBible(BaseModel):
+    """
+    Non-rendered planning file stored at `in/ep0.json`.
+
+    This is the handoff surface for new stories: a whole-story summary, poster
+    prompt, shared image style, character bible, and one prompt/description per
+    planned episode. The render commands intentionally skip it.
+    """
+
+    kind: Literal["story_bible"] = "story_bible"
+    series: str
+    title: str
+    premise: str | None = None
+    whole_story_summary: str
+    poster_prompt: str
+    episode_image_style_prompt: str | None = None
+    characters: dict[str, CharacterSpec] = Field(default_factory=dict)
+    episode_plan: list[StoryBibleEpisode] = Field(default_factory=list)
+    notes_for_other_ai: list[str] = Field(default_factory=list)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Loading: accepts either a single Episode object or a list
 # ─────────────────────────────────────────────────────────────────────────────
@@ -471,6 +504,29 @@ def _normalize_episode_dict(raw: dict, source: str = "<spec>") -> dict:
     return raw
 
 
+def is_story_bible_dict(raw: Any) -> bool:
+    """Heuristic for the non-rendered `in/ep0.json` story-bible format."""
+    return (
+        isinstance(raw, dict)
+        and (
+            raw.get("kind") == "story_bible"
+            or (
+                "whole_story_summary" in raw
+                and "poster_prompt" in raw
+                and "episode_plan" in raw
+            )
+        )
+    )
+
+
+def load_story_bible(path: Path) -> StoryBible:
+    """Load and validate `in/ep0.json`."""
+    raw: Any = json.loads(path.read_text(encoding="utf-8"))
+    if not is_story_bible_dict(raw):
+        raise ValueError(f"{path.name} is not a story bible")
+    return StoryBible.model_validate(raw)
+
+
 def load_episodes(path: Path) -> list[Episode]:
     """
     Load one or more Episode objects from a JSON file.
@@ -485,6 +541,11 @@ def load_episodes(path: Path) -> list[Episode]:
     """
     raw: Any = json.loads(path.read_text(encoding="utf-8"))
     source = path.name
+    if is_story_bible_dict(raw):
+        raise ValueError(
+            f"{path.name} is a story bible, not a renderable episode spec. "
+            "Story bibles are validated with `./novel validate ep0` and skipped by render."
+        )
     if isinstance(raw, list):
         return [Episode.model_validate(_normalize_episode_dict(item, source)) for item in raw]
     if isinstance(raw, dict):

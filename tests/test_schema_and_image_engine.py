@@ -37,9 +37,13 @@ def test_image_engine_rejects_unknown():
 
 
 def test_image_generation_keeps_distilled_defaults():
-    """Both distilled engines run at low steps; ensure defaults survive."""
+    """
+    Channel default is hyper-sdxl-8step (better quality). Even when a user
+    overrides to sdxl-lightning-4step, the spec keeps `steps` at the
+    channel-wide default (8) — the engine itself forces 4 internally.
+    """
     cfg = ImageGeneration(engine="sdxl-lightning-4step")
-    assert cfg.steps == 4
+    assert cfg.steps == 8
     assert cfg.gen_width == 1024 and cfg.gen_height == 576  # 16:9 enforced
 
 

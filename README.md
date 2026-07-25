@@ -1,11 +1,13 @@
 # thai-novel
 
 > **Cinematic Thai audiobook production pipeline.**
-> Write a JSON. Run `./generate`. Get a 9–40 minute YouTube-ready MP4 in 2–5 minutes. No Chrome, no Node, no slideshow tools — just Python + ffmpeg + your SDXL anime art.
+> Write `ep0.json` as the story bible, write `epNN.json` episodes with one photo each, run `./generate`, and get YouTube-ready MP4s grouped at up to 10 episodes per video. No Chrome, no Node, no slideshow tools — just Python + ffmpeg plus curated AI images.
 
 ```
-in/<spec>.json  ──►  ./generate  ──►  novels/<id>/output/final.mp4
-                                       (~14 MB for a 9-min episode at 1280×720)
+in/ep0.json      ──►  story bible / prompts only (skipped by render)
+in/ep01.json     ──┐
+in/ep02.json       ├──►  ./generate  ──►  novels/<series>-ep01-ep10/output/final.mp4
+... up to ep10   ──┘
 ```
 
 ---
@@ -31,8 +33,9 @@ in/<spec>.json  ──►  ./generate  ──►  novels/<id>/output/final.mp4
 This project is a **narration-first, atmosphere-heavy audiobook pipeline** for long-form Thai romance/comedy/light-novel content destined for YouTube. It's optimized for:
 
 - **MacBook Pro Apple Silicon** (M1 or newer; designed against M2 Pro 32 GB)
-- **30–40 minute episodes** at 720p or 1080p
-- **5–15 generated images per episode** — visuals are *cinematic anchors*, not scene snapshots
+- **Grouped publication videos** containing up to 10 source episodes per MP4
+- **One OpenAI/Codex-generated photo per source episode** — narration carries the story
+- **One shared poster image per whole story** at `novels/poster/background.png`, used for YouTube posting/thumbnail material, not as the only in-video image
 - **2–5 minute renders end-to-end** for a 9-minute episode, ~10–15 minutes for a full 30-minute one
 
 It is **not**:
@@ -247,7 +250,7 @@ That's the only command 99% of the time. It:
 ### Output location
 
 ```
-novels/<episode-id>/output/
+novels/<episode-or-group-id>/output/
 ├── final.mp4               ← the video you upload to YouTube
 ├── subtitles.srt           ← optional Thai captions
 ├── chapter_markers.txt     ← paste into the YouTube description
@@ -255,7 +258,9 @@ novels/<episode-id>/output/
 ```
 
 `description.txt` is generated from `project.series`, `project.episode`,
-`project.title`, and `project.short_description`:
+`project.title`, and `project.short_description`. For grouped videos, it
+contains each included episode name plus that episode's short description, up
+to 10 entries in one file:
 
 ```text
 เรื่อง {series}
@@ -267,7 +272,39 @@ novels/<episode-id>/output/
 #นิยายเสียง 
 ```
 
-The `<episode-id>` comes from the `project.id` field in your JSON. For the bundled example: `novels/devil-cafe-ep01/output/final.mp4`.
+For a batch of `ep01.json` through `ep10.json`, output lands at a grouped id
+such as `novels/<series-slug>-ep01-ep10/output/final.mp4`. Rendering a single
+explicit episode still uses that episode's own `project.id`.
+
+For YouTube posting, use the same shared poster for every post in the story,
+the grouped `final.mp4` as the upload video, and the grouped `description.txt`
+as the paste-ready description.
+
+### Grouped video flow
+
+A publication video can contain up to 10 source episodes. The poster is shared
+for the whole story, but the video switches to each episode's own image when
+that episode starts:
+
+```text
+1. Spoken: ยินดีต้อนรับเข้าสู่ช่อง T H A I channel ขอให้สนุกกับการรับฟังครับ
+   Visual: channel image / channel logo
+
+2. Spoken: เรื่อง {story_name} ตอนที่ N {ep_title}
+   Visual: episode title moment
+
+3. Spoken: episode N narration
+   Visual: episode N image
+
+4. Spoken: เรื่อง {story_name} ตอนที่ N+1 {ep_title}
+   Visual: episode title moment
+
+5. Spoken: episode N+1 narration
+   Visual: episode N+1 image
+```
+
+This repeats until the grouped video reaches 10 episodes or runs out of active
+`epNN.json` files.
 
 ### Iteration loop
 
@@ -292,6 +329,7 @@ The content-addressable cache means **edits are fast**. Changing one sentence re
 ./generate [<id>]                     # full pipeline, one shot
 ./generate --skip-narrate             # text unchanged → skip narration regen
 ./generate --skip-images              # images unchanged → skip image regen
+./generate --group-size 1             # render one MP4 per source episode
 ./generate --skip-narrate --skip-images   # only re-compose+mux
 ```
 
@@ -303,7 +341,7 @@ The content-addressable cache means **edits are fast**. Changing one sentence re
 ./novel new <id>                      # scaffold in/<id>.json from the example
 ./novel narrate [<id>]                # only synthesize narration WAVs
 ./novel images [<id>] [--force]       # only resolve/generate visual anchors
-./novel render [<id>]                 # same as ./generate
+./novel render [<id>]                 # same as ./generate; batches up to 10 source episodes per MP4
 ./novel version
 ```
 
@@ -326,6 +364,7 @@ The content-addressable cache means **edits are fast**. Changing one sentence re
 Files matching these patterns are ignored by auto-pick:
 - Start with `_` (e.g. `_old-draft.json`) — your archive
 - End with `.example.json` (e.g. `template.example.json`) — template reference
+- Exactly `ep0.json` — story bible / prompt handoff, not renderable
 
 To work on one explicitly: `./generate <name>` (without the `.json` extension).
 
@@ -446,24 +485,45 @@ Editing one paragraph re-synthesizes one sentence (~2s), rebuilds one segment (~
 
 ## 9. Writing new episodes
 
-### Use the template
+### Start with `ep0.json`
+
+Every new story starts with `in/ep0.json`. This file is not rendered. It is
+the whole-story bible for you, Codex, and other AI agents:
+
+- Whole-story summary
+- Shared poster prompt for `novels/poster/background.png`
+- Shared image style prompt
+- Character bible
+- Episode plan with one image prompt and one short description per episode
+
+Validate it directly with:
 
 ```bash
-cp in/template.example.json in/ep02.json
-$EDITOR in/ep02.json
+./novel validate ep0
+```
+
+### Use the episode template
+
+```bash
+cp in/template.example.json in/ep01.json
+$EDITOR in/ep01.json
 ./generate
 ```
 
-Generated episode filenames should be plain `epNN.json` with a two-digit
-episode number only, such as `ep01.json` or `ep12.json`. Do not include the
-story title in the filename. The `project.id` inside the JSON still controls
-the output folder under `novels/`.
+Generated episode filenames must be plain `epNN.json` with a two-digit episode
+number only, such as `ep01.json` or `ep12.json`. Do not include the story title
+in the filename.
+
+Each source episode should contain **exactly one chapter and one visual anchor**.
+Generate that episode photo with OpenAI/Codex, save it to
+`library/visuals/backgrounds/<series-slug>_epNN.png`, then reference it as
+`library://backgrounds/<series-slug>_epNN` in the JSON.
 
 The template (`in/template.example.json`) has **inline `_doc` comments on every field**, tagged by tier:
 
 - `FIXED` — set once for the channel. Don't change between episodes (voice, image style, music palette, intro logo).
 - `PER_SERIES` — set once per series. Same across all episodes (characters, theme).
-- `PER_EPISODE` — changes every episode. THIS is where the story lives (`project.id`, `chapters`, `narration_blocks`, `end_card`).
+- `PER_EPISODE` — changes every episode. THIS is where the story lives (`project.id`, one `chapter`, `narration_blocks`, `end_card`).
 
 ### Schema essentials
 
@@ -494,14 +554,19 @@ See `in/README.md` for the full field reference. Quick version:
 }
 ```
 
-### Batch mode
+### Batch mode: max 10 episodes per video
 
-Drop multiple `.json` files into `./in/`. They render sequentially:
+Drop multiple `epNN.json` files into `./in/`. By default, they render in
+publication groups of up to 10 episodes per MP4:
 
 ```
 in/
-  ep01.json            ← rendered first
-  ep02.json            ← rendered second
+  ep0.json             ← story bible, skipped
+  ep01.json            ← grouped into video 1
+  ep02.json            ← grouped into video 1
+  ...
+  ep10.json            ← grouped into video 1
+  ep11.json            ← grouped into video 2
   _draft.json          ← skipped (underscore prefix)
   template.example.json ← skipped (.example.json suffix)
 ```
@@ -515,7 +580,9 @@ A single `.json` can also be an array of episodes:
 ]
 ```
 
-Both forms get flattened into one render queue. A summary table is printed at the end.
+Both forms get flattened into one render queue, then chunked into groups of up
+to 10 source episodes. Use `./generate --group-size 1` if you deliberately want
+one MP4 per source episode.
 
 ---
 

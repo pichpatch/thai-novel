@@ -1,7 +1,7 @@
 """
 Phase E: final mux.
 
-Takes the Remotion render (video + narration baked in) and adds:
+Takes the composed raw MP4 (video + narration baked in) and adds:
   - music bed track (sidechain-ducked under narration)
   - ambience track (under everything)
   - loudness normalization to -14 LUFS (YouTube standard)
@@ -99,7 +99,7 @@ def write_description(timeline: dict, out_path: Path) -> Path:
         short_story,
         "",
         "ขอบคุณที่รับฟังกันนะครับ",
-        "#นิยายเสียง ",
+        "#นิยายเสียง",
         "",
     ]
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -114,7 +114,7 @@ async def finalize(
     out_dir: Path,
 ) -> dict:
     """
-    Mux: video (from remotion_mp4) + music_bed (looped) + ambience (looped) + loudnorm.
+    Mux: video (from the composed raw MP4) + music_bed (looped) + ambience (looped) + loudnorm.
 
     Returns: {"mp4": Path, "srt": Path, "chapters_txt": Path, "description": Path}
     """

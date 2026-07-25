@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>One-Photo Publication Workflow - Stories</title>
+</head>
+<body>
+  <h1>User Stories</h1>
+  <ol>
+    <li>As the channel owner, I want <code>ep0.json</code> to store the whole story and prompts so every AI agent understands the same plan.</li>
+    <li>As the channel owner, I want one image per episode so visual production is faster and more consistent.</li>
+    <li>As the channel owner, I want up to 10 episodes in one MP4 so uploads can be packaged as longer compilation videos.</li>
+    <li>As the channel owner, I want the grouped description to include every episode's short description so I can paste it into YouTube.</li>
+    <li>As the channel owner, I want the same story poster reused for every post while the video itself changes image at each episode boundary.</li>
+    <li>As the channel owner, I want each episode in a grouped video introduced by spoken text: เรื่อง {story_name} ตอนที่ N {ep_title}.</li>
+  </ol>
+  <h2>Acceptance Criteria</h2>
+  <ul>
+    <li><code>./novel validate ep0</code> validates the story bible.</li>
+    <li><code>./generate</code> skips <code>ep0.json</code>.</li>
+    <li>Multiple active <code>epNN.json</code> files are chunked into groups of 10 by default.</li>
+    <li><code>./generate --group-size 1</code> preserves one-video-per-source-episode behavior.</li>
+    <li>A grouped video starts with the channel image and welcome narration: ยินดีต้อนรับเข้าสู่ช่อง T H A I channel ขอให้สนุกกับการรับฟังครับ.</li>
+    <li>For each included episode, the clip speaks the episode title line, then shows that episode image while reading narration.</li>
+  </ul>
+  <h2>Onboarding Notes</h2>
+  <p>The simplest mental model is: <code>ep0</code> plans the series, <code>epNN</code> tells one source episode, and grouped render publishes up to 10 source episodes together.</p>
+</body>
+</html>

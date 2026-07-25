@@ -1,21 +1,22 @@
-# `./in/` — episode spec JSON
+# `./in/` — story bible and episode spec JSON
 
-Drop one or more `.json` files in this folder. Then from the project root
-run `./generate` and you'll get `./novels/<id>/output/final.mp4` for each.
+Start each new story with `ep0.json`, then add one or more `epNN.json` files.
+From the project root, run `./generate` and the active episodes are grouped
+into publication videos of up to 10 source episodes per MP4.
 
-## Two reference files (auto-skipped by `./generate`)
+## Reference and control files
 
 | File | What |
 | --- | --- |
-| `example.json` | A complete working episode (ร้านกาแฟของคุณปีศาจ ตอน 1). Use it to see what a finished spec looks like. |
+| `ep0.json` | Story bible and prompt handoff. Contains the whole-story summary, poster prompt, shared image style prompt, characters, and per-episode image prompts. It is skipped by render. |
 | `template.example.json` | A template with **inline `_doc` comments** explaining every field, tagged by tier: `FIXED` (set once per channel) vs `PER_SERIES` (set once per series) vs `PER_EPISODE` (changes each episode). Copy this when authoring a new episode. |
 
-Both are skipped by auto-pick (the CLI ignores `*.example.json` and any file
-starting with `_`). To work from the template:
+`ep0.json`, `*.example.json`, and files starting with `_` are skipped by
+auto-pick. To work from the template:
 
 ```bash
-cp in/template.example.json in/ep02.json
-$EDITOR in/ep02.json   # fill in PER_EPISODE fields
+cp in/template.example.json in/ep01.json
+$EDITOR in/ep01.json   # fill in PER_EPISODE fields
 ./generate
 ```
 
@@ -23,16 +24,70 @@ The `_doc` / `_note` / `_README` / `_characters_doc` fields in the template
 are JSON comments — Pydantic silently ignores any key starting with `_`,
 so you can leave them in your edited copy or strip them out, either way works.
 
-## Two ways to batch many episodes
+## New story workflow
+
+1. Fill `in/ep0.json` with the whole-story summary and prompts.
+2. Generate the shared story poster with OpenAI/Codex and save it as `novels/poster/background.png`. Reuse this same poster for every YouTube post for the story.
+3. For each source episode, generate one image with OpenAI/Codex and save it as:
+
+```text
+library/visuals/backgrounds/<series-slug>_epNN.png
+```
+
+4. In each `epNN.json`, use one chapter only and reference the image:
+
+```jsonc
+"visual_anchor": {
+  "ref": "library://backgrounds/<series-slug>_epNN",
+  "motion": "static"
+}
+```
+
+5. Run `./generate`. The pipeline groups up to 10 source episodes into one MP4.
+
+## Grouped video sequence
+
+For a grouped video such as `ep01` through `ep10`, the visible and spoken flow is:
+
+```text
+1. Spoken: ยินดีต้อนรับเข้าสู่ช่อง T H A I channel ขอให้สนุกกับการรับฟังครับ
+   Visual: channel image / channel logo
+
+2. Spoken: เรื่อง {story_name} ตอนที่ 1 {ep01_title}
+   Visual: episode title moment
+
+3. Spoken: ep01 narration
+   Visual: library://backgrounds/<series-slug>_ep01
+
+4. Spoken: เรื่อง {story_name} ตอนที่ 2 {ep02_title}
+   Visual: episode title moment
+
+5. Spoken: ep02 narration
+   Visual: library://backgrounds/<series-slug>_ep02
+```
+
+The pattern repeats until the grouped video reaches 10 episodes. The poster is
+not the only video image; it is the shared story/posting asset.
+
+For YouTube, each grouped output should provide:
+
+- The same shared poster for every post in the story
+- One `final.mp4`
+- One `description.txt` containing up to 10 episode titles and short descriptions
+
+## Two ways to provide many source episodes
 
 **Multiple files** — drop several `.json` files into `./in/`. They render
-in **alphabetical order**, one episode at a time:
+in **alphabetical order**, then group into publication videos:
 
 ```
 in/
-  ep01.json                   ← rendered first
-  ep02.json                   ← rendered second
-  ep03.json                   ← rendered third
+  ep0.json                    ← story bible, skipped
+  ep01.json                   ← video 1
+  ep02.json                   ← video 1
+  ...
+  ep10.json                   ← video 1
+  ep11.json                   ← video 2
   _draft.json                 ← underscore-prefixed = ignored
 ```
 
@@ -46,20 +101,18 @@ in/
 ```
 
 Both forms can be mixed — file order first, then array order within each file.
-The CLI flattens everything into one queue and renders sequentially.
+The CLI flattens everything into one queue and chunks it into groups of up to
+10 source episodes. Use `./generate --group-size 1` to force one MP4 per source
+episode.
 
 Inactive specs are prefixed with underscore (`_old-idea.json`) so the
 CLI skips them without you having to delete or move them.
 
-See `example.json` for a complete worked example: ร้านกาแฟของคุณปีศาจ
-ตอนที่ 1, ~32 minutes, 5 chapters.
-
-Ask Cowork: *"fill in `in/ep02.json` for ตอนที่ 2"* and it will
-write the whole spec.
-
 Generated episode filenames should be plain `epNN.json` with a two-digit
 episode number only. Do not put the story title in the filename. The
 `project.id` inside the JSON still controls the output folder under `novels/`.
+In automatic batch mode, grouped output ids become `<series-slug>-ep01-ep10`,
+`<series-slug>-ep11-ep20`, and so on.
 
 ---
 
@@ -74,7 +127,7 @@ episode number only. Do not put the story title in the filename. The
 | `characters` | dict | no | `{}` |
 | `audio` | object | no | rain ambience, cozy piano |
 | `subtitles` | object | no | Sarabun, karaoke reveal |
-| `chapters` | array | **yes** | — |
+| `chapters` | array | **yes** | exactly one chapter per source episode |
 | `end_card` | object | no | shown for 8s |
 
 ---
@@ -200,13 +253,15 @@ free-form; `male_lead` and `female_lead` are convention.
 
 ## `chapters[]`
 
-Each chapter has its own visual anchor and one or more narration blocks.
+New workflow: each source episode has exactly one chapter, and that chapter has
+the episode's only visual anchor. Use multiple narration blocks inside the
+chapter when the episode is long or mood changes.
 
 ```jsonc
 {
   "id": "ch_01",
-  "title": "คืนฝนตกที่ร้านกาแฟ",
-  "show_title_card": true,
+  "title": "ภาพหลักของตอน",
+  "show_title_card": false,
   "title_card_duration_sec": 4,
   "visual_anchor": { ... },          // see below
   "narration_blocks": [ ... ]        // see below
@@ -216,6 +271,9 @@ Each chapter has its own visual anchor and one or more narration blocks.
 ### `visual_anchor`
 
 Either `ref` a library asset OR `prompt` a new one. Not both.
+
+Preferred: generate the image with OpenAI/Codex first, save it in
+`library/visuals/backgrounds/`, then use `ref`.
 
 ```jsonc
 // Library reference (preferred — reuse is success):
@@ -286,8 +344,14 @@ into YouTube:
 
 ---
 
-## A note on the array form
+## `ep0.json` story bible
 
-The current `example.json` uses an array `[ {...} ]` containing one episode.
-That's intentional — the array form is forward-compatible with multi-episode
-files, and the schema treats `{...}` and `[{...}]` identically. Either is fine.
+`ep0.json` validates as a `StoryBible`, not an `Episode`. It should include:
+
+- `whole_story_summary`
+- `poster_prompt`
+- `episode_image_style_prompt`
+- `characters`
+- `episode_plan[]` with `episode`, `title`, `short_description`, and `image_prompt`
+
+Validate it with `./novel validate ep0`. Render commands skip it automatically.

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>One-Photo Publication Workflow - Business</title>
+</head>
+<body>
+  <h1>One-Photo Publication Workflow</h1>
+  <p>The production workflow now centers on fast story packaging for YouTube. A new story starts with a non-rendered <code>in/ep0.json</code> story bible, one shared poster for every YouTube post in the story, and one OpenAI/Codex-generated image per source episode.</p>
+  <h2>Business Rules</h2>
+  <ul>
+    <li><code>in/ep0.json</code> is a story bible and prompt handoff for the user and other AI agents.</li>
+    <li>Each renderable <code>epNN.json</code> source episode should contain exactly one chapter and one image.</li>
+    <li>Automatic publishing groups contain at most 10 source episodes per MP4.</li>
+    <li>A grouped video's YouTube description must include the short description for every included source episode.</li>
+    <li>The whole-story poster is stored at <code>novels/poster/background.png</code> and is reused for every YouTube post for the story.</li>
+    <li>The poster is not the only in-video image. The video shows the channel image during welcome, then switches to the current episode image when each episode starts.</li>
+    <li>The grouped clip sequence is: welcome narration with channel image, spoken episode title, episode image with episode narration, then repeat spoken episode title plus episode image for each next episode.</li>
+  </ul>
+  <h2>Onboarding Notes</h2>
+  <p>The first action for a new story is filling <code>ep0.json</code>. After that, generate the poster and episode images, then write <code>ep01.json</code>, <code>ep02.json</code>, and so on from the template.</p>
+</body>
+</html>
