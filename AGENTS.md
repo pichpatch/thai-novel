@@ -65,6 +65,7 @@ These come from rounds of "we tried it and learned":
 | **Default resolution: 1280×720 @ 24 fps** | 1080p30 produced 400+ MB files and added ~30s of render. 720p24 with static frames lands at ~14 MB for 9 minutes. Bump to 1920×1080 in JSON if needed. |
 | **One image per source episode** | New workflow: each `epNN.json` has exactly one chapter and one visual anchor. `./generate` groups up to 10 source episodes, so a publication video contains up to 10 episode images. |
 | **Grouped video sequence** | Start with spoken welcome `ยินดีต้อนรับเข้าสู่ช่อง T H A I channel ขอให้สนุกกับการรับฟังครับ` while showing the channel image. Then for each source episode: speak `เรื่อง {story_name} ตอนที่ N {ep_title}`, show that episode's image, and read that episode's narration. Repeat through at most 10 episodes. |
+| **Grouped description context** | A grouped `description.txt` must include episode titles, short descriptions, and a character relationship tree for the included episodes. Put paste-ready Thai tree text in `project.description_context`: previous relationships, what changes in this episode/group, latest relationship status, and small details for characters who appear. |
 | **All images: `motion: "static"`** | The composer (Stage 4) **does not implement motion**. The field is kept in the schema for future, but currently every preset (`slow_zoom_in`, etc.) renders identically to `static`. Setting motion has zero render effect today — just keeps the spec future-proof. |
 | **Subtitles default OFF** | `subtitles.enabled = false` in schema default + example. Overlay text crowded the cinematic frames. SRT is still exported next to `final.mp4` (upload as YT captions). |
 | **Chapter title cards default OFF** | `Chapter.show_title_card = false`. This is an AUDIOBOOK — listeners are not looking at the screen, so a silent ~4s card between chapters is dead air. A previous attempt to narrate the chapter title on top of the card was rolled back: the user explicitly wants chapter transitions to be seamless audio. Keep chapter count low rather than re-enabling the card. Set `true` per chapter only for deliberate visual interludes. |
@@ -212,7 +213,7 @@ The full schema lives in `src/thai_novel/spec.py`. Quick reference:
 
 ```jsonc
 {
-  "project":          { "id", "title", "episode?", "series?", "short_description", "resolution", "fps", ... },
+  "project":          { "id", "title", "episode?", "series?", "short_description", "description_context?", "resolution", "fps", ... },
   "tts":              { "voice", "rate", "pitch", "mood_pauses", ... },           // FIXED
   "image_generation": { "engine", "steps", "guidance", "seed", "gen_*", ... },   // FIXED
   "visual_style":     { "base_prompt", "negative_prompt", "color_grade" },        // FIXED
@@ -297,6 +298,7 @@ The composer (Stage 4) ignores motion in the current build. All chapter images r
    - Episode title narration: `เรื่อง {story_name} ตอนที่ N {ep_title}`.
    - Episode narration: show `library://backgrounds/<series-slug>_epNN` while reading.
    - Repeat title + episode image + narration for the next episode until the 10-episode group ends.
+   - Grouped `description.txt`: include up to 10 episode titles + short descriptions, then a `ผังความสัมพันธ์และตัวละครที่เกี่ยวข้อง` section sourced from `project.description_context`. Write it as an indented character tree that covers prior relationships, current changes, latest status, and small character details for everyone who appears in the group.
 
 6. **Image prompts are English; narration is Thai.** Don't mix.
 

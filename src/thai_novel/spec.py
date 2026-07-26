@@ -70,6 +70,7 @@ class Project(BaseModel):
     series: str | None = None
     episode: int | None = None
     short_description: str | None = None
+    description_context: str | None = None
     language: Literal["th"] = "th"
     theme: str | None = None
     resolution: str = "1920x1080"
@@ -377,6 +378,7 @@ class StoryBibleEpisode(BaseModel):
     episode: int
     title: str
     short_description: str
+    description_context: str | None = None
     image_prompt: str
     narration_prompt: str | None = None
 

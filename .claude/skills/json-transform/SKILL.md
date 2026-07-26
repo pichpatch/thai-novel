@@ -50,7 +50,7 @@ Skip these and you will invent FIXED values that contradict the channel's standa
 | --- | --- |
 | **FIXED** (voice, image gen, visual style, music palette, intro logo, subtitle config) | Copy from `in/template.example.json` or from a sibling `in/*.json`. NEVER invent these. |
 | **PER_SERIES** (characters, theme, poster prompt, shared image style) | Copy from `in/ep0.json` or prior episode. If none exists, ASK once. |
-| **PER_EPISODE** (`project.id`, `title`, `episode`, `short_description`, one `chapter`, `narration_blocks`, `end_card`) | This is where your work goes — invented in Mode A, mapped from sources in Mode B. |
+| **PER_EPISODE** (`project.id`, `title`, `episode`, `short_description`, `description_context`, one `chapter`, `narration_blocks`, `end_card`) | This is where your work goes — invented in Mode A, mapped from sources in Mode B. |
 
 ---
 
@@ -69,7 +69,7 @@ Skip these and you will invent FIXED values that contradict the channel's standa
    - Shared poster prompt for `novels/poster/background.png`; this poster is reused for every YouTube post for the story.
    - Shared episode-image style prompt.
    - Character bible.
-   - Episode plan with `episode`, `title`, `short_description`, `image_prompt`, and `narration_prompt`.
+   - Episode plan with `episode`, `title`, `short_description`, `description_context`, `image_prompt`, and `narration_prompt`.
    - Show the short story, poster prompt, and episode plan to the user before writing the full episode files when the user asks for preview/approval.
 
 3. **Write narration blocks**:
@@ -88,6 +88,7 @@ Skip these and you will invent FIXED values that contradict the channel's standa
 5. **Short description + end card**:
    - Write `project.short_description` as one smooth Thai paragraph for YouTube.
    - Keep it short: 2–4 sentences, no spoilers beyond the episode hook.
+   - Write `project.description_context` as a paste-ready Thai character relationship tree for grouped YouTube descriptions. Include relationships carried from previous episodes, what changes in this episode, the latest relationship status, and small details for characters who appear. Prefer indented tree lines like `ตัวละครหลัก\n├─ คนที่เกี่ยวข้อง: ก่อนหน้า...; ตอนนี้...; สถานะล่าสุด...\n└─ อีกคน: รายละเอียดเล็กๆ...`.
    - It is exported to `novels/<id>/output/description.txt`.
    - End card: next episode title + short Thai farewell.
 
@@ -179,12 +180,13 @@ These rules govern your output regardless of how you arrived at it:
 - **Do not use per-scene images** in the new workflow. `anchor_override` is legacy escape hatch only.
 - **Image budget**: exactly 1 episode image per source episode, plus 1 poster for the whole story.
 - **Library convention**: episode images are series-namespaced, e.g. `shadow_dynasty_ep01`, and referenced as `library://backgrounds/shadow_dynasty_ep01`.
-- **Publication grouping**: `./generate` groups up to 10 source episodes into one video and writes a description containing all included short descriptions.
+- **Publication grouping**: `./generate` groups up to 10 source episodes into one video and writes a description containing all included short descriptions plus any `project.description_context` relationship tree.
 - **Grouped video sequence**:
   1. Speak `ยินดีต้อนรับเข้าสู่ช่อง T H A I channel ขอให้สนุกกับการรับฟังครับ` while showing the channel image/logo.
   2. For each source episode, speak `เรื่อง {story_name} ตอนที่ N {ep_title}`.
   3. Show that episode's image and read that episode's narration.
   4. Repeat episode title + episode image + narration until the group reaches 10 episodes.
+- **Grouped description context**: every source episode should provide `project.description_context` as an indented character tree so the grouped `description.txt` can show prior relationships, current changes, latest relationship status, and small details of each character appearing in that 10-episode group.
 
 ---
 
@@ -272,6 +274,7 @@ To override aesthetic, set `image_generation.base_model` to any SDXL repo id (e.
 - [ ] File path is `in/epNN.json` (two-digit episode number only) and does NOT end with `.example.json`
 - [ ] `project.id` is slug-safe, lowercase, series-prefixed
 - [ ] `project.short_description` is a smooth Thai YouTube description paragraph
+- [ ] `project.description_context` is an indented character relationship tree with current-state notes and small character details relevant to this episode/group
 - [ ] Every source episode has exactly one chapter with `id`, `title`, `visual_anchor`, and ≥1 `narration_blocks`
 - [ ] Every narration_block has `id`, `mood` (from strict list), `narration`
 - [ ] All narration is Thai prose — no English inside narration field
@@ -332,7 +335,8 @@ Read `in/ep0.json` and the target file first. Preserve everything FIXED + PER_SE
     "id": "my-series-ep01",
     "title": "ตอนที่ 1: <ชื่อตอน>",
     "episode": 1,
-    "short_description": "เรื่องย่อสั้นภาษาไทยสำหรับ YouTube description ของตอนนี้"
+    "short_description": "เรื่องย่อสั้นภาษาไทยสำหรับ YouTube description ของตอนนี้",
+    "description_context": "ตัวละครหลัก\n├─ ตัวละครรอง: ก่อนหน้า...; ตอนนี้...; สถานะล่าสุด...\n└─ ตัวละครอีกคน: รายละเอียดเล็กๆ ที่เห็นชัดในตอนนี้"
   },
   "chapters": [
     {

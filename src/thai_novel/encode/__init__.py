@@ -87,6 +87,7 @@ def write_description(timeline: dict, out_path: Path) -> Path:
     episode = timeline.get("episode")
     title = timeline.get("title") or ""
     short_story = (timeline.get("short_description") or "").strip()
+    description_context = (timeline.get("description_context") or "").strip()
 
     episode_line = (
         f"ตอนที่ {episode} {title}"
@@ -98,10 +99,18 @@ def write_description(timeline: dict, out_path: Path) -> Path:
         "",
         short_story,
         "",
+    ]
+    if description_context:
+        lines.extend([
+            "ผังความสัมพันธ์และตัวละครที่เกี่ยวข้อง",
+            description_context,
+            "",
+        ])
+    lines.extend([
         "ขอบคุณที่รับฟังกันนะครับ",
         "#นิยายเสียง",
         "",
-    ]
+    ])
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(lines), encoding="utf-8")
     return out_path

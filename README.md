@@ -258,9 +258,12 @@ novels/<episode-or-group-id>/output/
 ```
 
 `description.txt` is generated from `project.series`, `project.episode`,
-`project.title`, and `project.short_description`. For grouped videos, it
-contains each included episode name plus that episode's short description, up
-to 10 entries in one file:
+`project.title`, `project.short_description`, and optional
+`project.description_context`. For grouped videos, it contains each included
+episode name plus that episode's short description, up to 10 entries in one
+file. If `description_context` is present, the file also includes a character
+relationship tree with relationship state and small character details relevant
+to those 10 episodes:
 
 ```text
 เรื่อง {series}
@@ -268,8 +271,24 @@ to 10 entries in one file:
 
 {short_description}
 
+ผังความสัมพันธ์และตัวละครที่เกี่ยวข้อง
+{description_context}
+
 ขอบคุณที่รับฟังกันนะครับ
 #นิยายเสียง 
+```
+
+Write `description_context` as a paste-ready Thai relationship tree, not
+internal planning. It should include relationships carried from previous
+episodes, changes in the current episode/group, the latest relationship status,
+and small details for characters who appear in the group. Use indentation to
+show who connects to whom:
+
+```text
+ลูฟี่
+├─ โคบี้: เพื่อนที่แยกทางกัน; ในชุดนี้โคบี้เริ่มฝึกใต้การดูแลของการ์ป; สถานะล่าสุดยังนับถือกันแต่ยืนคนละฝั่งหน้าที่
+│  └─ การ์ป: ผู้ฝึกของโคบี้; เป็นปู่ของลูฟี่
+└─ โซโล: เริ่มจากการชวนเข้ากลุ่ม; สถานะล่าสุดเป็นเพื่อนร่วมทางและลูกเรือคนแรก
 ```
 
 For a batch of `ep01.json` through `ep10.json`, output lands at a grouped id
@@ -531,7 +550,7 @@ See `in/README.md` for the full field reference. Quick version:
 
 ```jsonc
 {
-  "project":    { "id": "...", "title": "...", "episode": N, "short_description": "...", "resolution": "1280x720", "fps": 24 },
+  "project":    { "id": "...", "title": "...", "episode": N, "short_description": "...", "description_context": "...", "resolution": "1280x720", "fps": 24 },
   "tts":        { "voice": "th-TH-NiwatNeural", "rate": "-10%", "mood_pauses": {...} },
   "characters": { "male_lead": {...}, "female_lead": {...} },
   "audio":      { "music_bed": {...}, "ambience": {...} },

@@ -199,6 +199,11 @@ def _make_group_episode(items: list[tuple[Path, Episode]], group_index: int) -> 
             f"{_episode_label(ep, i + 1)}\n{(ep.project.short_description or '').strip()}"
             for i, (_, ep) in enumerate(items)
         ).strip(),
+        "description_context": "\n\n".join(
+            f"{_episode_label(ep, i + 1)}\n{(ep.project.description_context or '').strip()}"
+            for i, (_, ep) in enumerate(items)
+            if (ep.project.description_context or "").strip()
+        ).strip() or None,
         "target_duration_min": sum(
             ep.project.target_duration_min or 0 for _, ep in items
         ) or None,

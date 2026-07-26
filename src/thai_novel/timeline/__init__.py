@@ -162,6 +162,7 @@ def compile_timeline(
         "series": episode.project.series,
         "episode": episode.project.episode,
         "short_description": episode.project.short_description,
+        "description_context": episode.project.description_context,
         "language": episode.project.language,
         "width": episode.project.width,
         "height": episode.project.height,

@@ -13,6 +13,7 @@
     <li>Group source episodes into publication videos of up to 10 episodes.</li>
     <li>Update docs, template, and authoring skill to require one image per source episode.</li>
     <li>Document the grouped clip flow: welcome with channel image, spoken episode title, then episode image with narration for each source episode.</li>
+    <li>Add optional <code>project.description_context</code> for an indented character relationship tree with current-state notes and character details in grouped YouTube descriptions.</li>
     <li>Document that the shared poster is for YouTube posting/thumbnail use and does not replace per-episode in-video images.</li>
   </ul>
   <h2>Risks</h2>
@@ -20,6 +21,7 @@
     <li>The pipeline cannot directly call the conversation ImageGen tool; image generation remains a Codex-assisted workflow that writes files into <code>library/visuals/backgrounds/</code>.</li>
     <li>Legacy multi-chapter source episodes can still render, but publication grouping flattens them under the first episode image to enforce one image per source episode.</li>
     <li>If the implementation does not yet synthesize per-episode title narration inside grouped videos, the docs mark that as required behavior for the next code update.</li>
+    <li>If an episode omits <code>project.description_context</code>, the grouped description remains valid but will not include a relationship tree for that episode.</li>
   </ul>
   <h2>Verification</h2>
   <p>Run schema validation, story-bible validation, and the Python test suite.</p>

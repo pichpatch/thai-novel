@@ -6,6 +6,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from thai_novel.cli import _group_for_publication, _resolve_inputs, app
+from thai_novel.encode import write_description
 from thai_novel.spec import Episode, StoryBible, load_story_bible
 
 
@@ -17,6 +18,7 @@ def _episode(n: int) -> Episode:
             "series": "เรื่องทดลอง",
             "episode": n,
             "short_description": f"เรื่องย่อตอนที่ {n}",
+            "description_context": f"ตัวละคร ก กับ ข เปลี่ยนความสัมพันธ์ในตอนที่ {n}",
             "resolution": "1280x720",
         },
         "intro": {"show": True, "channel_name": "T-H-A-I Novel"},
@@ -81,6 +83,25 @@ def test_publication_groups_cap_at_ten():
     assert groups[0][1].anchor_count == 10
     assert "ตอนที่ 1 ชื่อตอน 1" in groups[0][1].project.short_description
     assert "เรื่องย่อตอนที่ 10" in groups[0][1].project.short_description
+    assert "ตัวละคร ก กับ ข เปลี่ยนความสัมพันธ์ในตอนที่ 10" in groups[0][1].project.description_context
+
+
+def test_write_description_includes_relationship_context(tmp_path: Path):
+    out_path = tmp_path / "description.txt"
+
+    write_description({
+        "series": "เรื่องทดลอง",
+        "episode": 1,
+        "title": "ชื่อตอน",
+        "short_description": "เรื่องย่อ",
+        "description_context": "ก\n├─ ข: ก่อนหน้าเป็นคนแปลกหน้า; ตอนนี้ช่วยกันรอด; สถานะล่าสุดเริ่มไว้ใจกัน",
+    }, out_path)
+
+    text = out_path.read_text(encoding="utf-8")
+
+    assert "เรื่อง เรื่องทดลอง" in text
+    assert "ผังความสัมพันธ์และตัวละครที่เกี่ยวข้อง" in text
+    assert "สถานะล่าสุดเริ่มไว้ใจกัน" in text
 
 
 def test_validate_accepts_explicit_ep0(tmp_path: Path, monkeypatch):

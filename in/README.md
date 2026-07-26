@@ -73,7 +73,9 @@ For YouTube, each grouped output should provide:
 
 - The same shared poster for every post in the story
 - One `final.mp4`
-- One `description.txt` containing up to 10 episode titles and short descriptions
+- One `description.txt` containing up to 10 episode titles, short descriptions,
+  a character relationship tree, current-state notes, and small details for
+  characters who appear in that group
 
 ## Two ways to provide many source episodes
 
@@ -141,6 +143,7 @@ In automatic batch mode, grouped output ids become `<series-slug>-ep01-ep10`,
   "series": "ร้านกาแฟของคุณปีศาจ",   // optional grouping
   "episode": 1,                      // optional
   "short_description": "...",         // Thai YouTube description paragraph
+  "description_context": "...",       // optional Thai relationship tree + character notes for grouped description.txt
   "language": "th",
   "theme": "romantic comedy fantasy",
   "resolution": "1920x1080",
@@ -338,8 +341,27 @@ into YouTube:
 
 {short_description}
 
+ผังความสัมพันธ์และตัวละครที่เกี่ยวข้อง
+{description_context}
+
 ขอบคุณที่รับฟังกันนะครับ
 #นิยายเสียง 
+```
+
+Use `project.description_context` for a paste-ready Thai relationship tree that explains:
+
+- Relationships carried from previous episodes
+- What changes in the current episode or 10-episode publication group
+- The latest relationship status after the episode/group
+- Small identifying details for characters who appear in the group
+
+Example:
+
+```text
+ลูฟี่
+├─ โคบี้: ก่อนหน้าเป็นเพื่อนที่แยกทางกัน; ในชุดนี้โคบี้เริ่มฝึกใต้การดูแลของการ์ป; สถานะล่าสุดยังนับถือกันแต่ยืนคนละฝั่งหน้าที่
+│  └─ การ์ป: ผู้ฝึกของโคบี้; เป็นปู่ของลูฟี่
+└─ โซโล: เริ่มจากการชวนเข้ากลุ่ม; สถานะล่าสุดเป็นเพื่อนร่วมทางและลูกเรือคนแรก
 ```
 
 ---
@@ -352,6 +374,7 @@ into YouTube:
 - `poster_prompt`
 - `episode_image_style_prompt`
 - `characters`
-- `episode_plan[]` with `episode`, `title`, `short_description`, and `image_prompt`
+- `episode_plan[]` with `episode`, `title`, `short_description`, optional
+  `description_context`, and `image_prompt`
 
 Validate it with `./novel validate ep0`. Render commands skip it automatically.
