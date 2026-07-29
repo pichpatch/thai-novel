@@ -16,10 +16,9 @@ import asyncio
 import logging
 from pathlib import Path
 
-log = logging.getLogger("thai_novel.encode")
+from ..channel import BACKGROUND_AUDIO_PATH, BACKGROUND_VOLUME_DB
 
-BACKGROUND_AUDIO_PATH = Path("library/audio/background.mp3")
-BACKGROUND_VOLUME_DB = -22.0
+log = logging.getLogger("thai_novel.encode")
 
 
 async def _run_ff(args: list[str]) -> tuple[int, bytes]:
@@ -117,7 +116,7 @@ def write_description(timeline: dict, out_path: Path) -> Path:
 
 
 async def finalize(
-    remotion_mp4: Path,
+    raw_mp4: Path,
     timeline: dict,
     project_root: Path,
     out_dir: Path,
@@ -140,7 +139,7 @@ async def finalize(
     duration = float(timeline["total_duration_sec"])
 
     args = ["-y", "-hide_banner", "-loglevel", "warning"]
-    args += ["-i", str(remotion_mp4)]
+    args += ["-i", str(raw_mp4)]
     args += [
         "-stream_loop", "-1", "-t", f"{duration:.3f}",
         "-i", str(background_path),

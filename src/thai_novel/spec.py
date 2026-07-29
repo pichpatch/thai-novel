@@ -44,7 +44,6 @@ MotionPreset = Literal[
     "ken_burns_combo",
     "static",
 ]
-TTSEngine = Literal["edge-tts", "piper"]
 ImageEngine = Literal[
     "sdxl-turbo",
     "sdxl-lightning-4step",
@@ -110,9 +109,6 @@ class MoodPause(BaseModel):
 
 
 class TTSConfig(BaseModel):
-    engine: TTSEngine = "edge-tts"
-    voice: str = "th-TH-PremwadeeNeural"
-    rate: str = "-10%"
     pitch: str = "+0Hz"
     sentence_pause_ms: int = 200
     paragraph_pause_ms: int = 800
@@ -225,12 +221,6 @@ class VisualAnchor(BaseModel):
         return self
 
 
-class SFXCue(BaseModel):
-    at_sec: float
-    ref: str                                                  # library://sfx/cup_clink
-    volume_db: float = -12.0
-
-
 class NarrationBlock(BaseModel):
     id: str
     mood: Mood = "cozy"
@@ -238,7 +228,6 @@ class NarrationBlock(BaseModel):
     narration: str = Field(..., min_length=1)
     subtitle_emphasis: list[str] = Field(default_factory=list)
     anchor_override: VisualAnchor | None = None
-    sfx_cues: list[SFXCue] = Field(default_factory=list)
 
     @field_validator("id")
     @classmethod
@@ -279,7 +268,7 @@ class IntroConfig(BaseModel):
     Per-episode intro shown BEFORE the first chapter.
 
     Two stages:
-      1. Channel welcome:  "ยินดีต้อนรับสู่ช่อง {channel_name}"  (~5s)
+      1. Channel welcome: the fixed T H A I Novel greeting         (~5s)
       2. Episode title:    "ตอนที่ {episode}: {title}"           (~4s)
 
     Both are spoken (edge-tts) and shown on screen with the channel logo.
@@ -287,8 +276,6 @@ class IntroConfig(BaseModel):
     """
 
     show: bool = True
-    channel_name: str = "THAI Novel"
-    welcome_narration: str | None = None              # auto: "ยินดีต้อนรับสู่ช่อง <channel>"
     welcome_duration_sec: float = 5.0
     title_narration: str | None = None                # auto: "ตอนที่ <n>: <title>"
     title_card_duration_sec: float = 4.5

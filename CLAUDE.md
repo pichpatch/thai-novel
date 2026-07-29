@@ -64,7 +64,7 @@ These come from rounds of "we tried it and learned":
 | **libx264 crf 28 tune=stillimage, NOT VideoToolbox** | VideoToolbox is 3× faster but produces visibly muddy output at the bitrates we target (~7 MB/min). libx264 with `tune=stillimage` is purpose-built for slow-motion content and looks materially better. |
 | **Default resolution: 1280×720 @ 24 fps** | 1080p30 produced 400+ MB files and added ~30s of render. 720p24 with static frames lands at ~14 MB for 9 minutes. Bump to 1920×1080 in JSON if needed. |
 | **One image per source episode** | New workflow: each `epNN.json` has exactly one chapter and one visual anchor. Each episode image must look like an episode key visual: summarize that episode, show the relevant characters/settings, and include exactly one readable title set for the story name and episode title, with no duplicate title layer, logo, signature, random text, or watermark. `./generate` groups up to 10 source episodes, so a publication video contains up to 10 episode images. |
-| **Grouped video sequence** | Start with spoken welcome `ยินดีต้อนรับเข้าสู่ช่อง T H A I Novel ขอให้สนุกกับการรับฟังครับ` while showing the channel image. Then for each source episode: speak `เรื่อง {story_name} ตอนที่ N {ep_title}`, show that episode's image, and read that episode's narration. Repeat through at most 10 episodes. |
+| **Grouped video sequence** | Start with spoken welcome `ยินดีต้อนรับเข้าสู่ช่อง T  H  A  I  โนเว่ล ขอให้สนุกกับการรับฟังค่ะ` while showing the channel image. This phonetic Thai spelling is for TTS only; visible labels remain `T H A I Novel`. Then for each source episode: speak `เรื่อง {story_name} ตอนที่ N {ep_title}`, show that episode's image, and read that episode's narration. Repeat through at most 10 episodes. |
 | **Grouped description context** | A grouped `description.txt` must include episode titles, short descriptions, and a character relationship tree for the included episodes. Put paste-ready Thai tree text in `project.description_context`: previous relationships, what changes in this episode/group, latest relationship status, and small details for characters who appear. |
 | **All images: `motion: "static"`** | The composer (Stage 4) **does not implement motion**. The field is kept in the schema for future, but currently every preset (`slow_zoom_in`, etc.) renders identically to `static`. Setting motion has zero render effect today — just keeps the spec future-proof. |
 | **Subtitles default OFF** | `subtitles.enabled = false` in schema default + example. Overlay text crowded the cinematic frames. SRT is still exported next to `final.mp4` (upload as YT captions). |
@@ -74,7 +74,7 @@ These come from rounds of "we tried it and learned":
 | **Library is never deleted by `./clean`** | Library backgrounds are real GPU output (~5s each). Treated as user content. `./clean --library` flag was REMOVED; if you really need to drop one: `rm library/visuals/backgrounds/<name>.png` by hand. |
 | **Smart library short-circuit by image_key** | `library/visuals/backgrounds/_index.json` stores the image_key (sha256 of prompt+seed+style+size). On next run, generated assets reuse only if the key matches; edit the prompt in JSON → it regenerates. Manually/Codex-created images already in `library/visuals/backgrounds/` without metadata are treated as curated assets and reused instead of regenerated. |
 | **Auto-normalizer on `load_episodes()`** | Cowork-generated specs sometimes use mood aliases (`melancholic`, `sad`), motion aliases (`slow_pan_left`, `fade_in`), or forget block IDs. The normalizer fixes these silently with INFO logs. See `src/thai_novel/spec.py:_normalize_episode_dict`. |
-| **Default voice: th-TH-PremwadeeNeural** | Warm Thai female narrator. Rate −10%. |
+| **Locked channel narration** | `src/thai_novel/channel.py` is the single source for `T H A I Novel`, the welcome sentence, `th-TH-PremwadeeNeural`, and the −15% base rate. Episode JSON must not repeat or override them. Keep `tts.mood_pauses`, pitch, and punctuation-driven pauses so delivery remains expressive. |
 | **One fixed background track** | `library/audio/background.mp3` is the only music/ambience bed. It loops across intro and narration and ducks under speech. Episode JSON has no background-audio keys; a missing file stops the render. |
 | **No `./novel preview`** | Removed when Remotion was removed. The render loop is fast enough that "edit JSON → `./generate` → play MP4" works as the preview. For audio-only checks, run `./novel narrate` and listen to `cache/<id>/blocks/*.wav` directly. |
 
@@ -112,8 +112,7 @@ thai-novel/
 │   │   └── luts/
 │   ├── audio/
 │   │   ├── background.mp3         # fixed CC0 real-piano Chopin recording
-│   │   ├── SOURCE.md              # recording provenance and CC0 evidence
-│   │   └── sfx/                   # optional cue effects referenced by library://sfx/...
+│   │   └── SOURCE.md              # recording provenance and CC0 evidence
 │   └── fonts/                     # optional .ttf/.otf override; macOS defaults work
 │
 ├── cache/                         # content-addressed (gitignored; `./clean` wipes)
@@ -155,10 +154,6 @@ thai-novel/
 │   └── json-transform/
 │       └── SKILL.md               # Project skill: create OR transform Thai stories to JSON
 │
-├── intro/                         # user's pre-existing logo (intro/logo.png)
-├── music/                         # user's pre-existing music
-├── cover/                         # user's pre-existing cover art
-├── voices/                        # legacy Piper TTS .onnx voice models (optional fallback)
 ├── manuscripts/                   # user's raw Thai chapter sources (.json or .md)
 ├── LICENSE                        # Apache 2.0
 └── README.md                      # complete project README (~250 lines, 11 sections)
@@ -192,12 +187,12 @@ Sub-commands (`./novel <verb>` — same venv, finer control):
 Cleanup:
 
 ```bash
-./clean              # wipe cache/ + novels/<id>/output/ + novels/<id>/_work/ + remotion/public/
+./clean              # wipe cache/ + novels/<id>/output/ + novels/<id>/_work/
 ./clean --models     # also wipe SDXL weights (~6.5 GB redownload)
 ./clean --yes        # skip confirmation
 ```
 
-**`./clean` NEVER deletes**: `library/`, `models/` (unless `--models`), `.venv/`, `in/`, `manuscripts/`, `intro/`, `music/`, `voices/`, `cover/`.
+**`./clean` NEVER deletes**: `library/`, `models/` (unless `--models`), `.venv/`, `in/`, or `manuscripts/`.
 
 The CLI auto-skips files in `./in/` whose name:
 - starts with `_` (archived/disabled), e.g. `_old-draft.json`
@@ -215,12 +210,12 @@ The full schema lives in `src/thai_novel/spec.py`. Quick reference:
 ```jsonc
 {
   "project":          { "id", "title", "episode?", "series?", "short_description", "description_context?", "resolution", "fps", ... },
-  "tts":              { "voice", "rate", "pitch", "mood_pauses", ... },           // FIXED
+  "tts":              { "pitch", "sentence_pause_ms", "mood_pauses", ... },       // EXPRESSIVE PACING
   "image_generation": { "engine", "steps", "guidance", "seed", "gen_*", ... },   // FIXED
   "visual_style":     { "base_prompt", "negative_prompt", "color_grade" },        // FIXED
   "characters":       { "male_lead": {...}, "female_lead": {...} },               // PER_SERIES
   "subtitles":        { "enabled": false, ... },                                   // FIXED, default off
-  "intro":            { "channel_name", "logo_ref" },                             // FIXED
+  "intro":            { "show", "logo_ref", "welcome_duration_sec", ... },       // FIXED VISUALS
   "chapters":         [ Chapter, Chapter, ... ],                                   // PER_EPISODE — the story
   "end_card":         { "next_episode_title", "message" }                          // PER_EPISODE
 }
@@ -294,7 +289,7 @@ The composer (Stage 4) ignores motion in the current build. All chapter images r
 5. **Total unique anchors per source episode: exactly 1.** Publication videos may contain up to 10 images because they group up to 10 source episodes.
 
    Grouped publication video flow:
-   - Welcome narration: `ยินดีต้อนรับเข้าสู่ช่อง T H A I Novel ขอให้สนุกกับการรับฟังครับ`; visual is the channel image/logo.
+   - Welcome narration: `ยินดีต้อนรับเข้าสู่ช่อง T  H  A  I  โนเว่ล ขอให้สนุกกับการรับฟังค่ะ`; `โนเว่ล` is spoken text only, while the visible channel label remains `T H A I Novel`.
    - Episode title narration: `เรื่อง {story_name} ตอนที่ N {ep_title}`.
    - Episode narration: show `library://backgrounds/<series-slug>_epNN` while reading.
    - Repeat title + episode image + narration for the next episode until the 10-episode group ends.
@@ -319,7 +314,7 @@ When helping the user write or transform an episode:
 - **Resist resolving things.** A scene that ends with characters *not* admitting their feelings is more romantic than one that does.
 - **Narrator is third-person.** No fourth-wall breaks. Render dialogue as reported speech (`"เขาบอกว่า ..."`).
 
-The voice and rate are tuned for this tone — adapt the writing, don't change the TTS settings to fit a different tone.
+The channel voice and base rate are fixed in `channel.py`. Express tone through Thai prose, punctuation, paragraph breaks, block `mood`, and `tts.mood_pauses` rather than adding voice settings to JSON.
 
 ---
 
@@ -331,7 +326,7 @@ The voice and rate are tuned for this tone — adapt the writing, don't change t
 | **Library promotion** | `library/visuals/backgrounds/<name>.png` + entry in `_index.json` with `image_key` | Manually deleted; smart short-circuit re-generates if stored `image_key` ≠ current |
 | **Per-anchor upscale** | `cache/<id>/anchors/<chapter_id>.png` | Anchor signature changes |
 | **Compose segments** | `cache/<id>/segments/<name>_<hash>.mp4` | Image, audio, duration, size, fps, or grade changes |
-| **Narration sentences** | `cache/narration/<hash>.wav` | Sentence text, voice, rate, pitch changes |
+| **Narration sentences** | `cache/narration/<hash>.wav` | Sentence text, mood-resolved rate, pitch, or fixed channel voice changes |
 
 The smart library short-circuit means: edit a prompt in JSON → that specific anchor regenerates. Same prompt → instant library reuse, zero SDXL cost.
 
@@ -368,7 +363,7 @@ Output specs (720p24 default): ~7 MB/min, H.264 + AAC stereo, -14 LUFS YouTube t
 | "/json-transform create a story about X" | **A** — invent story from premise, write Thai prose, output JSON |
 | "/json-transform transform my .md files at <folder>" | **B** — read existing prose files, reshape into JSON without inventing new content |
 
-Either way the output is a valid `in/<name>.json` ready for `./generate`. The skill knows the schema, the normalizer aliases, the voice guidance, and the library convention.
+Either way the output is a valid `in/<name>.json` ready for `./generate`. The skill knows the schema, normalizer aliases, expressive pacing guidance, and library convention.
 
 It auto-loads for any Claude Code session opened in this repo — no install step. To use from a different agent (Cowork, etc.), point that agent at the same `SKILL.md` path.
 
@@ -385,7 +380,7 @@ In this order:
 5. **`.claude/skills/json-transform/SKILL.md`** — the authoring skill (read before helping with episode JSON)
 6. **`src/thai_novel/spec.py`** — Pydantic source of truth, including the `_normalize_episode_dict()` aliases
 7. **`in/ep0.json` if present** — story bible and prompt handoff
-8. **Any existing `in/epNN.json`** — for series-voice and character continuity
+8. **Any existing `in/epNN.json`** — for prose style and character continuity
 
 ---
 

@@ -156,7 +156,7 @@ You need **at least one Thai-capable font** installed. macOS ships several by de
 
 ## 4. Assets you need to provide
 
-Visual and SFX assets use the `library://` URI scheme. Background music is a
+Visual assets use the `library://` URI scheme. Background music is a
 channel-level asset and is deliberately not configurable from episode JSON.
 
 ### 4a. Background audio (included)
@@ -289,7 +289,7 @@ for the whole story, but the video switches to each episode's own image when
 that episode starts:
 
 ```text
-1. Spoken: ยินดีต้อนรับเข้าสู่ช่อง T H A I Novel ขอให้สนุกกับการรับฟังครับ
+1. Spoken: ยินดีต้อนรับเข้าสู่ช่อง T  H  A  I  โนเว่ล ขอให้สนุกกับการรับฟังค่ะ
    Visual: channel image / channel logo
 
 2. Spoken: เรื่อง {story_name} ตอนที่ N {ep_title}
@@ -356,7 +356,7 @@ The content-addressable cache means **edits are fast**. Changing one sentence re
 ```
 
 `./clean` **never** deletes:
-- `library/` — fixed background audio, logo, backgrounds, and SFX
+- `library/` — fixed background audio, logo, and reusable visual assets
 - `models/` — SDXL weights (expensive to redownload)
 - `in/` — your JSON specs
 - `.venv/`, `node_modules/` — installs
@@ -529,7 +529,7 @@ Generate that episode photo with OpenAI/Codex, save it to
 
 The template (`in/template.example.json`) has **inline `_doc` comments on every field**, tagged by tier:
 
-- `FIXED` — set once for the channel. Don't change between episodes (voice, image style, intro logo).
+- `FIXED` — set once for the channel. Don't change between episodes (image style, intro logo).
 - `PER_SERIES` — set once per series. Same across all episodes (characters, theme).
 - `PER_EPISODE` — changes every episode. THIS is where the story lives (`project.id`, one `chapter`, `narration_blocks`, `end_card`).
 
@@ -540,9 +540,9 @@ See `in/README.md` for the full field reference. Quick version:
 ```jsonc
 {
   "project":    { "id": "...", "title": "...", "episode": N, "short_description": "...", "description_context": "...", "resolution": "1280x720", "fps": 24 },
-  "tts":        { "voice": "th-TH-PremwadeeNeural", "rate": "-10%", "mood_pauses": {...} },
+  "tts":        { "pitch": "+0Hz", "sentence_pause_ms": 200, "mood_pauses": {...} },
   "characters": { "male_lead": {...}, "female_lead": {...} },
-  "intro":      { "channel_name": "T H A I Novel", "logo_ref": "library://overlays/channel_logo" },
+  "intro":      { "show": true, "logo_ref": "library://overlays/channel_logo" },
   "chapters": [
     {
       "id": "ch_01",
@@ -610,9 +610,8 @@ one MP4 per source episode.
 | Subtitle .srt isn't synced word-by-word | `mlx-whisper` not installed (using even-distribute fallback) | `.venv/bin/pip install mlx-whisper` |
 | Edge-tts errors with "rate limit" | Too many parallel sentences | The pipeline caps at 3 concurrent already; wait a minute and re-run |
 | Render fails at "ffmpeg mux failed" | Asset path issue | Check that all `library://...` refs in your JSON resolve to existing files |
-| Want a different voice | Edit `tts.voice` in JSON | Channel default is the warm female `th-TH-PremwadeeNeural` voice |
+| Narration sounds too flat | Blocks all use one mood or omit useful paragraph breaks | Vary block `mood`; tune `tts.mood_pauses`; keep natural Thai punctuation and paragraph breaks |
 | `./clean` accidentally too aggressive | It's not — `./clean` never deletes `library/`, `models/`, or `in/` | Verified by design |
-| Random Chrome processes left behind | Stale from old Remotion days, shouldn't happen now | `pkill -9 -f 'chrome-headless-shell'` (one-time) |
 
 ---
 
@@ -627,7 +626,7 @@ Practically:
 - ✅ **No royalties owed to the project**
 - ❗ You should preserve the copyright notice in any redistribution of the code
 
-**Note on generated content**: the videos this pipeline produces are *your* content. SDXL Turbo output and edge-tts audio are governed by their own licenses (check current terms). The bundled background uses a public-domain Chopin composition and a real-piano performance released by its recording author under CC0; see `library/audio/SOURCE.md`. Logos and any SFX you add remain governed by their own licenses. The pipeline itself imposes no restrictions on the output.
+**Note on generated content**: the videos this pipeline produces are *your* content. SDXL Turbo output and edge-tts audio are governed by their own licenses (check current terms). The bundled background uses a public-domain Chopin composition and a real-piano performance released by its recording author under CC0; see `library/audio/SOURCE.md`. Logos and other user-provided assets remain governed by their own licenses. The pipeline itself imposes no restrictions on the output.
 
 ---
 

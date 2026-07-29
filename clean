@@ -2,21 +2,20 @@
 # ./clean — remove generated outputs and caches so you can start fresh.
 #
 # Removes (always):
-#   cache/                  narration WAVs, image cache, remotion bundle
+#   cache/                  narration WAVs, image cache, render segments
 #   novels/<id>/output/     final MP4s, SRTs, chapter markers
 #   novels/<id>/_work/      intermediate raw renders
-#   remotion/public/        legacy empty folder, kept only for old checkouts
 #
 # Preserves (expensive to recreate / valuable content):
 #   models/                       SDXL Turbo + diffusers weights (~6.5 GB)
 #   .venv/                        Python venv
-#   library/                      ALL user-curated assets — music, logo,
-#                                 AND promoted backgrounds (real SDXL images
+#   library/                      fixed background audio, logo, character refs,
+#                                 AND promoted backgrounds (real generated images
 #                                 that took GPU time to generate). Never
 #                                 touched by ./clean. Delete by hand if
 #                                 you really need to.
 #   in/                           your JSON spec(s)
-#   manuscripts/, voices/, intro/, music/, cover/   your content
+#   manuscripts/                  source story content
 #
 # Optional flags:
 #   --models      also wipe models/ AND ~/.cache/huggingface/{hub,xet}
@@ -62,17 +61,11 @@ for arg in "$@"; do
 done
 
 # ── 1. Detect in-flight render and offer to kill ────────────────────────────
-# Two things to look for:
-#   (a) any stale legacy Remotion process
-#   (b) any python ./novel render still running
-render_pids=$(pgrep -f 'scripts/render.mjs|thai-novel render|novel render' 2>/dev/null || true)
-chrome_pids=$(pgrep -f 'node_modules/.remotion/chrome-headless-shell' 2>/dev/null || true)
-chrome_count=$(echo -n "$chrome_pids" | grep -c . || true)
+render_pids=$(pgrep -f 'thai-novel render|novel render' 2>/dev/null || true)
 
-if [[ -n "$render_pids" || $chrome_count -gt 0 ]]; then
+if [[ -n "$render_pids" ]]; then
   warn "pipeline processes detected:"
-  [[ -n "$render_pids" ]] && echo "    render parent(s): $(echo $render_pids | tr '\n' ' ')" >&2
-  [[ $chrome_count -gt 0 ]] && echo "    remotion chrome: $chrome_count process(es)" >&2
+  echo "    render process(es): $(echo $render_pids | tr '\n' ' ')" >&2
 
   if [[ "$YES" = false ]]; then
     read -rp "Kill all of them and proceed with clean? [y/N] " ans
@@ -80,13 +73,11 @@ if [[ -n "$render_pids" || $chrome_count -gt 0 ]]; then
   fi
 
   # SIGTERM first (graceful)
-  [[ -n "$render_pids" ]] && kill $render_pids 2>/dev/null || true
+  kill $render_pids 2>/dev/null || true
   sleep 2
-  # SIGKILL anything still alive, including orphaned Chrome subprocesses
-  pkill -9 -f 'scripts/render.mjs|thai-novel render|novel render' 2>/dev/null || true
-  pkill -9 -f 'node_modules/.remotion/chrome-headless-shell' 2>/dev/null || true
+  pkill -9 -f 'thai-novel render|novel render' 2>/dev/null || true
   sleep 1
-  remaining=$(pgrep -f 'scripts/render.mjs|node_modules/.remotion/chrome-headless-shell' 2>/dev/null | wc -l | tr -d ' ')
+  remaining=$(pgrep -f 'thai-novel render|novel render' 2>/dev/null | wc -l | tr -d ' ')
   if [[ $remaining -gt 0 ]]; then
     warn "still $remaining process(es) alive after SIGKILL — check manually"
   else
@@ -97,7 +88,6 @@ fi
 # ── 2. Build delete list ────────────────────────────────────────────────────
 paths=()
 [[ -d cache ]]            && paths+=("cache")
-[[ -d remotion/public ]]  && paths+=("remotion/public")
 for d in novels/*/output novels/*/_work; do
   [[ -d "$d" ]] && paths+=("$d")
 done
@@ -109,7 +99,7 @@ $MODELS  && [[ -d models ]]                       && paths+=("models")
 $MODELS  && [[ -d "$HOME/.cache/huggingface/hub" ]] && paths+=("$HOME/.cache/huggingface/hub")
 $MODELS  && [[ -d "$HOME/.cache/huggingface/xet" ]] && paths+=("$HOME/.cache/huggingface/xet")
 # --refs only wipes character reference images. Other library subfolders
-# (backgrounds, music, overlays, etc.) are NEVER touched by ./clean.
+# (backgrounds, overlays, etc.) are NEVER touched by ./clean.
 $REFS    && [[ -d library/visuals/characters ]] && paths+=("library/visuals/characters")
 
 if [[ ${#paths[@]} -eq 0 ]]; then
@@ -138,7 +128,7 @@ for p in "${paths[@]}"; do
 done
 
 # Recreate empty container dirs so the pipeline doesn't have to mkdir on next run
-mkdir -p cache novels remotion/public
+mkdir -p cache novels
 
 echo
 say "done. Run [bold]./generate[/bold] to start fresh."

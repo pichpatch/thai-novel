@@ -38,7 +38,7 @@ Before writing anything:
 1. **`in/template.example.json`** — schema with inline `_doc` comments tagged FIXED / PER_SERIES / PER_EPISODE. This is the canonical structure.
 2. **`in/README.md`** — field-by-field reference + the `library://` convention.
 3. **`in/ep0.json` if it exists** — story bible, prompt handoff, and continuity source.
-4. **Any existing `in/epNN.json` siblings** — for series continuity (characters, voice, style).
+4. **Any existing `in/epNN.json` siblings** — for series continuity (characters, prose, style).
 
 Skip these and you will invent FIXED values that contradict the channel's standards.
 
@@ -48,9 +48,14 @@ Skip these and you will invent FIXED values that contradict the channel's standa
 
 | Tier | Source |
 | --- | --- |
-| **FIXED** (voice, image gen, visual style, intro logo, subtitle config) | Copy from `in/template.example.json` or from a sibling `in/*.json`. Background audio is fixed in the pipeline, not JSON. NEVER invent these. |
+| **FIXED** (image gen, visual style, intro logo, subtitle config) | Copy from `in/template.example.json` or from a sibling `in/*.json`. Channel voice, welcome, and background audio are fixed in Python, not JSON. NEVER invent keys for them. |
 | **PER_SERIES** (characters, theme, poster prompt, shared image style) | Copy from `in/ep0.json` or prior episode. If none exists, ASK once. |
 | **PER_EPISODE** (`project.id`, `title`, `episode`, `short_description`, `description_context`, one `chapter`, `narration_blocks`, `end_card`) | This is where your work goes — invented in Mode A, mapped from sources in Mode B. |
+
+Channel narration is locked in `src/thai_novel/channel.py`:
+`th-TH-PremwadeeNeural`, `-15%`, and the exact T H A I Novel welcome sentence.
+Do not repeat these values in JSON. Keep `tts.mood_pauses`, pitch, punctuation,
+and paragraph breaks so each scene retains expressive pacing.
 
 ---
 
@@ -189,7 +194,7 @@ These rules govern your output regardless of how you arrived at it:
 - **Library convention**: episode images are series-namespaced, e.g. `shadow_dynasty_ep01`, and referenced as `library://backgrounds/shadow_dynasty_ep01`.
 - **Publication grouping**: `./generate` groups up to 10 source episodes into one video and writes a description containing all included short descriptions plus any `project.description_context` relationship tree.
 - **Grouped video sequence**:
-  1. Speak `ยินดีต้อนรับเข้าสู่ช่อง T H A I Novel ขอให้สนุกกับการรับฟังครับ` while showing the channel image/logo.
+  1. Speak `ยินดีต้อนรับเข้าสู่ช่อง T  H  A  I  โนเว่ล ขอให้สนุกกับการรับฟังค่ะ` while showing the channel image/logo. `โนเว่ล` is TTS-only; visible labels stay `T H A I Novel`.
   2. For each source episode, speak `เรื่อง {story_name} ตอนที่ N {ep_title}`.
   3. Show that episode's image and read that episode's narration.
   4. Repeat episode title + episode image + narration until the group reaches 10 episodes.
@@ -326,7 +331,7 @@ For other genres (thriller, drama, fantasy), adapt the voice but keep the struct
 | Setting `subtitles.enabled: true` without being asked | Leave false (channel default) |
 | More than one unique image in a source episode | Merge into one chapter/photo. The publication video may contain up to 10 episode images because it groups up to 10 source episodes |
 | Writing a 6000-char block "because the story needed it" | Split into 2–3 blocks with mood shifts |
-| Setting `tts.voice` to something other than the channel default without being asked | Don't change it |
+| Adding `tts.engine`, `tts.voice`, `tts.rate`, `intro.channel_name`, or `intro.welcome_narration` | Remove them; these are fixed channel constants in Python |
 | **Mode B**: rewriting / "improving" the source prose | Don't. Transform structure only. Surface improvement suggestions as questions, not silent edits |
 | **Mode B**: skipping prose paragraphs silently | Report what you skipped and why |
 | **Mode A**: writing the full episode before showing the user the outline | Outline first → get approval → then write prose |
@@ -372,7 +377,7 @@ Read `in/ep0.json` and the target file first. Preserve everything FIXED + PER_SE
 }
 ```
 
-For real episodes, ALSO include `tts`, `image_generation`, `visual_style`, `characters`, `subtitles`, `intro`, `end_card` — copy these from `in/template.example.json` and only adjust `intro.channel_name` / `characters.*` per series. Never add background-audio keys.
+For real episodes, ALSO include `tts`, `image_generation`, `visual_style`, `characters`, `subtitles`, `intro`, `end_card` — copy these from `in/template.example.json` and adjust `characters.*` per series. `tts` contains expressive pacing only. Never add fixed channel narration or background-audio keys.
 
 ## Reference: minimal valid `in/ep0.json`
 

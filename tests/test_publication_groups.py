@@ -21,7 +21,7 @@ def _episode(n: int) -> Episode:
             "description_context": f"ตัวละคร ก กับ ข เปลี่ยนความสัมพันธ์ในตอนที่ {n}",
             "resolution": "1280x720",
         },
-        "intro": {"show": True, "channel_name": "T H A I Novel"},
+        "intro": {"show": True},
         "chapters": [{
             "id": "ch_01",
             "title": f"บทของตอน {n}",

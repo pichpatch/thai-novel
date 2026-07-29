@@ -8,6 +8,7 @@ import logging
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from ..channel import NARRATOR_BASE_RATE, WELCOME_NARRATION
 from ..spec import Episode, NarrationBlock
 from .align import SubtitleCue, align_block
 from .segment import segment_thai_with_pauses
@@ -52,7 +53,7 @@ def _mood_settings(episode: Episode, mood: str) -> tuple[str, str, int, int]:
     base = episode.tts
     pause = base.sentence_pause_ms
     paragraph_pause = base.paragraph_pause_ms
-    rate = base.rate
+    rate = NARRATOR_BASE_RATE
     pitch = base.pitch
     if mood in base.mood_pauses:
         mp = base.mood_pauses[mood]
@@ -75,14 +76,13 @@ async def narrate_block(
     on_progress=None,
 ) -> BlockNarration:
     rate, pitch, sentence_pause_ms, paragraph_pause_ms = _mood_settings(episode, block.mood)
-    voice = episode.tts.voice
     sentences, pause_after_ms = segment_thai_with_pauses(
         block.narration,
         sentence_pause_ms=sentence_pause_ms,
         paragraph_pause_ms=paragraph_pause_ms,
     )
 
-    payloads = [(s, voice, rate, pitch) for s in sentences]
+    payloads = [(s, rate, pitch) for s in sentences]
     sentence_wavs = await synthesize_many(payloads, sentence_cache_dir, on_progress=on_progress)
 
     block_wav = block_wav_dir / f"{block.id}.wav"
@@ -127,15 +127,11 @@ async def narrate_episode(
     # ── Intro pre-roll blocks (auto-generated from intro config) ────────────
     intro_blocks: list[NarrationBlock] = []
     if episode.intro.show:
-        wel_text = (
-            episode.intro.welcome_narration
-            or f"ยินดีต้อนรับสู่ช่อง {episode.intro.channel_name}"
-        )
         intro_blocks.append(NarrationBlock(
             id="intro_welcome",
             mood="cozy",
             duration_hint_sec=int(episode.intro.welcome_duration_sec),
-            narration=wel_text,
+            narration=WELCOME_NARRATION,
         ))
         ep_num = episode.project.episode
         ep_title = episode.project.title

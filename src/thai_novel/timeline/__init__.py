@@ -48,11 +48,6 @@ def compile_timeline(
 
         intro_section = {
             "show": True,
-            "channel_name": episode.intro.channel_name,
-            "welcome_text": (
-                episode.intro.welcome_narration
-                or f"ยินดีต้อนรับสู่ช่อง {episode.intro.channel_name}"
-            ),
             "title_text": episode.intro.title_narration or (
                 f"ตอนที่ {episode.project.episode} — {episode.project.title}"
                 if episode.project.episode is not None else episode.project.title
@@ -114,10 +109,6 @@ def compile_timeline(
                     for cue in bn.cues
                 ],
                 "subtitle_emphasis": b.subtitle_emphasis,
-                "sfx_cues": [
-                    {"at_sec": s.at_sec, "ref": s.ref, "volume_db": s.volume_db}
-                    for s in b.sfx_cues
-                ],
             })
             cursor += dur
             chapter_blocks_duration += dur

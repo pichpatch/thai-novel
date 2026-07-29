@@ -54,7 +54,7 @@ text for `{story_name}` plus `ตอนที่ N {ep_title}`.
 For a grouped video such as `ep01` through `ep10`, the visible and spoken flow is:
 
 ```text
-1. Spoken: ยินดีต้อนรับเข้าสู่ช่อง T H A I Novel ขอให้สนุกกับการรับฟังครับ
+1. Spoken: ยินดีต้อนรับเข้าสู่ช่อง T  H  A  I  โนเว่ล ขอให้สนุกกับการรับฟังค่ะ
    Visual: channel image / channel logo
 
 2. Spoken: เรื่อง {story_name} ตอนที่ 1 {ep01_title}
@@ -127,7 +127,7 @@ In automatic batch mode, grouped output ids become `<series-slug>-ep01-ep10`,
 | Field | Type | Required | Default |
 | --- | --- | --- | --- |
 | `project` | object | yes | — |
-| `tts` | object | no | edge-tts / af_heart equivalent |
+| `tts` | object | no | expressive mood, pitch, and pause controls |
 | `image_generation` | object | no | hyper-sdxl-8step, MLX, 1024×576 |
 | `visual_style` | object | no | cinematic romantic anime |
 | `characters` | dict | no | `{}` |
@@ -158,23 +158,23 @@ In automatic batch mode, grouped output ids become `<series-slug>-ep01-ep10`,
 
 ```jsonc
 {
-  "engine": "edge-tts",                       // or "piper" (uses voices/*.onnx)
-  "voice": "th-TH-PremwadeeNeural",
-  "rate": "-10%",
   "pitch": "+0Hz",
   "sentence_pause_ms": 320,
   "paragraph_pause_ms": 800,
   "mood_pauses": {
     "cozy":      { "sentence_pause_ms": 380 },
-    "tense":     { "sentence_pause_ms": 320, "paragraph_pause_ms": 950, "rate_override": "-12%" },
-    "funny":     { "sentence_pause_ms": 220, "rate_override": "-5%" },
-    "romantic":  { "sentence_pause_ms": 460, "rate_override": "-15%" },
-    "melancholy":{ "sentence_pause_ms": 500, "rate_override": "-18%" }
+    "funny":     { "sentence_pause_ms": 220, "rate_override": "-10%" },
+    "romantic":  { "sentence_pause_ms": 460, "rate_override": "-20%" },
+    "melancholy":{ "sentence_pause_ms": 500, "rate_override": "-23%" },
+    "tense":     { "sentence_pause_ms": 320, "paragraph_pause_ms": 950, "rate_override": "-17%" }
   }
 }
 ```
 
-Per-mood overrides let you slow down for tense or romantic peaks and speed up for funny beats.
+Per-mood overrides slow down romantic or melancholy passages and speed up
+funny beats. The engine, `th-TH-PremwadeeNeural` voice, `-15%` base rate,
+channel name, and welcome sentence are constants in `src/thai_novel/channel.py`;
+do not repeat them in episode JSON.
 Narration text may use explicit newlines to control audiobook pacing: normal
 sentence boundaries use `sentence_pause_ms`, while a newline between narration
 paragraphs uses `paragraph_pause_ms`.
@@ -303,10 +303,7 @@ Color grades: `warm_cozy`, `cool_night`, `golden_hour`, `melancholy_blue`,
   "duration_hint_sec": 180,          // advisory; actual = TTS output length
   "narration": "...",                // 1500–3000 Thai chars per block is the sweet spot
   "subtitle_emphasis": ["นที"],     // these strings get bolded in subs
-  "anchor_override": { ... },        // optional per-block visual swap (rare)
-  "sfx_cues": [
-    { "at_sec": 12, "ref": "library://sfx/cup_clink", "volume_db": -12 }
-  ]
+  "anchor_override": { ... }         // optional per-block visual swap (rare)
 }
 ```
 

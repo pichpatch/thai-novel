@@ -6,12 +6,14 @@ from pathlib import Path
 
 import pytest
 
+from thai_novel.channel import NARRATOR_VOICE
 from thai_novel.encode import BACKGROUND_AUDIO_PATH, finalize
 from thai_novel.spec import Episode, IntroConfig, NarrationBlock, TTSConfig
 
 
 def test_channel_uses_premwadee_by_default() -> None:
-    assert TTSConfig().voice == "th-TH-PremwadeeNeural"
+    assert NARRATOR_VOICE == "th-TH-PremwadeeNeural"
+    assert "voice" not in TTSConfig.model_fields
 
 
 def test_audio_selection_is_not_part_of_episode_schema() -> None:
@@ -19,6 +21,7 @@ def test_audio_selection_is_not_part_of_episode_schema() -> None:
     assert "background_music_ref" not in IntroConfig.model_fields
     assert "music_override" not in NarrationBlock.model_fields
     assert "ambience_override" not in NarrationBlock.model_fields
+    assert "sfx_cues" not in NarrationBlock.model_fields
 
 
 def test_template_has_no_background_audio_keys() -> None:
@@ -26,13 +29,14 @@ def test_template_has_no_background_audio_keys() -> None:
     episodes = json.loads((project_root / "in/template.example.json").read_text(encoding="utf-8"))
     assert episodes
     for episode in episodes:
-        assert episode["tts"]["voice"] == "th-TH-PremwadeeNeural"
+        assert {"engine", "voice", "rate"}.isdisjoint(episode["tts"])
         assert "audio" not in episode
         assert "background_music_ref" not in episode["intro"]
         for chapter in episode["chapters"]:
             for block in chapter["narration_blocks"]:
                 assert "music_override" not in block
                 assert "ambience_override" not in block
+                assert "sfx_cues" not in block
 
 
 def test_finalize_requires_the_fixed_background(tmp_path: Path) -> None:

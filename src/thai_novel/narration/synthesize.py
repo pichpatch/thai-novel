@@ -2,7 +2,7 @@
 edge-tts synthesizer with content-addressable caching and 3-parallel cap.
 
 The narration cache lives at ./cache/narration/<key>.wav  where key =
-sha256(text + voice + rate + pitch). Identical inputs hit instantly.
+sha256(text + fixed channel voice + rate + pitch). Identical inputs hit instantly.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from pathlib import Path
 
 import edge_tts
 
+from ..channel import NARRATOR_VOICE
 from ..hashing import narration_key
 
 log = logging.getLogger("thai_novel.narration")
@@ -35,7 +36,6 @@ async def _run_ffmpeg(args: list[str]) -> tuple[int, bytes]:
 
 async def synthesize_sentence(
     text: str,
-    voice: str,
     rate: str,
     pitch: str,
     cache_dir: Path,
@@ -47,7 +47,7 @@ async def synthesize_sentence(
     edge-tts writes mp3; we transcode to wav so the rest of the pipeline can
     treat narration as 22050 Hz mono PCM.
     """
-    key = narration_key(text, voice, rate, pitch)
+    key = narration_key(text, NARRATOR_VOICE, rate, pitch)
     out_wav = cache_dir / f"{key}.wav"
     if out_wav.exists():
         return out_wav
@@ -58,13 +58,18 @@ async def synthesize_sentence(
         # 1. edge-tts -> mp3
         tmp_mp3 = cache_dir / f"{key}.partial.mp3"
         try:
-            communicate = edge_tts.Communicate(text=text, voice=voice, rate=rate, pitch=pitch)
+            communicate = edge_tts.Communicate(
+                text=text,
+                voice=NARRATOR_VOICE,
+                rate=rate,
+                pitch=pitch,
+            )
             await communicate.save(str(tmp_mp3))
         except Exception as e:
             tmp_mp3.unlink(missing_ok=True)
             raise RuntimeError(f"edge-tts failed for {key[:8]}...: {e}") from e
 
-        # 2. mp3 -> wav (22050 Hz mono, matches Piper sample rate so we can mix freely)
+        # 2. mp3 -> wav (22050 Hz mono keeps all narration blocks consistent)
         tmp_wav = cache_dir / f"{key}.partial.wav"
         rc, stderr = await _run_ffmpeg([
             "-y", "-hide_banner", "-loglevel", "error",
@@ -85,7 +90,7 @@ async def synthesize_sentence(
 
 
 async def synthesize_many(
-    sentences: list[tuple[str, str, str, str]],  # (text, voice, rate, pitch)
+    sentences: list[tuple[str, str, str]],  # (text, rate, pitch)
     cache_dir: Path,
     on_progress=None,
 ) -> list[Path]:
@@ -94,10 +99,10 @@ async def synthesize_many(
     done = 0
     total = len(sentences)
 
-    async def _one(idx: int, payload: tuple[str, str, str, str]) -> tuple[int, Path]:
+    async def _one(idx: int, payload: tuple[str, str, str]) -> tuple[int, Path]:
         nonlocal done
-        text, voice, rate, pitch = payload
-        path = await synthesize_sentence(text, voice, rate, pitch, cache_dir, sem)
+        text, rate, pitch = payload
+        path = await synthesize_sentence(text, rate, pitch, cache_dir, sem)
         done += 1
         if on_progress:
             on_progress(done, total)

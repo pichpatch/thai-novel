@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from ..channel import NARRATOR_BASE_RATE
+
 
 _TERMINAL_PUNCT = (".", "!", "?", "ฯ")
 
@@ -88,13 +90,13 @@ def segment_thai_with_pauses(
     return sentences, pauses
 
 
-def estimate_seconds(text: str, rate: str = "-10%") -> float:
+def estimate_seconds(text: str, rate: str = NARRATOR_BASE_RATE) -> float:
     """Rough duration estimate for Thai TTS at a given rate."""
-    # Empirical: Premwadee at -10% reads ~2.5 Thai chars/sec.
+    # Empirical baseline: Premwadee at 0% reads roughly 2.5 Thai chars/sec.
     base_cps = 2.5
     rate_multiplier = 1.0
     m = re.match(r"^([+-]?\d+(?:\.\d+)?)\s*%$", rate.strip())
     if m:
         pct = float(m.group(1))
-        rate_multiplier = 1.0 + pct / 100.0  # -10% -> 0.9 (slower)
+        rate_multiplier = 1.0 + pct / 100.0  # -15% -> 0.85 (slower)
     return len(text) / (base_cps * rate_multiplier)

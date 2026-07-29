@@ -17,6 +17,7 @@ import logging
 import os
 from pathlib import Path
 
+from ..channel import CHANNEL_NAME
 from . import cards
 from .cards import (
     cached_card,
@@ -212,7 +213,7 @@ async def compose_video(
     width = int(timeline["width"])
     height = int(timeline["height"])
     fps = int(timeline["fps"])
-    channel_name = (timeline.get("intro") or {}).get("channel_name") or "THAI Novel"
+    channel_name = CHANNEL_NAME
 
     work_dir = project_root / "cache" / episode_id / "segments"
     cards_dir = project_root / "cache" / episode_id / "cards"
