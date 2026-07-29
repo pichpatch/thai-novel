@@ -45,7 +45,7 @@ ep0 story bible + epNN JSON specs
    │              4 parallel ffmpeg segment builds, content-addressed cache
    │              Stream-copy concat → raw.mp4
    │
-   └──► Stage 5  Final mux           ffmpeg adds music+ambience+sidechain+loudnorm
+   └──► Stage 5  Final mux           ffmpeg loops fixed background.mp3 + sidechain + loudnorm
                   libx264 crf 28 tune=stillimage (not VideoToolbox — see §3)
                   → novels/<id>/output/final.mp4
 ```
@@ -63,8 +63,8 @@ These come from rounds of "we tried it and learned":
 | **No Remotion, no Node, no Chrome** | Was using Remotion 4.x for compositing. Removed because: (a) Chrome rendering was 10× slower than ffmpeg for static images, (b) `calculateMetadata` was unreliable across point releases, (c) `node_modules/` added 700 MB. Pure ffmpeg gets us to ~3 min renders. `package.json`, `tsconfig.json`, `remotion.config.ts`, `remotion/`, `scripts/render.mjs` — all deleted. **Don't add them back.** |
 | **libx264 crf 28 tune=stillimage, NOT VideoToolbox** | VideoToolbox is 3× faster but produces visibly muddy output at the bitrates we target (~7 MB/min). libx264 with `tune=stillimage` is purpose-built for slow-motion content and looks materially better. |
 | **Default resolution: 1280×720 @ 24 fps** | 1080p30 produced 400+ MB files and added ~30s of render. 720p24 with static frames lands at ~14 MB for 9 minutes. Bump to 1920×1080 in JSON if needed. |
-| **One image per source episode** | New workflow: each `epNN.json` has exactly one chapter and one visual anchor. `./generate` groups up to 10 source episodes, so a publication video contains up to 10 episode images. |
-| **Grouped video sequence** | Start with spoken welcome `ยินดีต้อนรับเข้าสู่ช่อง T H A I channel ขอให้สนุกกับการรับฟังครับ` while showing the channel image. Then for each source episode: speak `เรื่อง {story_name} ตอนที่ N {ep_title}`, show that episode's image, and read that episode's narration. Repeat through at most 10 episodes. |
+| **One image per source episode** | New workflow: each `epNN.json` has exactly one chapter and one visual anchor. Each episode image must look like an episode key visual: summarize that episode, show the relevant characters/settings, and include exactly one readable title set for the story name and episode title, with no duplicate title layer, logo, signature, random text, or watermark. `./generate` groups up to 10 source episodes, so a publication video contains up to 10 episode images. |
+| **Grouped video sequence** | Start with spoken welcome `ยินดีต้อนรับเข้าสู่ช่อง T H A I Novel ขอให้สนุกกับการรับฟังครับ` while showing the channel image. Then for each source episode: speak `เรื่อง {story_name} ตอนที่ N {ep_title}`, show that episode's image, and read that episode's narration. Repeat through at most 10 episodes. |
 | **Grouped description context** | A grouped `description.txt` must include episode titles, short descriptions, and a character relationship tree for the included episodes. Put paste-ready Thai tree text in `project.description_context`: previous relationships, what changes in this episode/group, latest relationship status, and small details for characters who appear. |
 | **All images: `motion: "static"`** | The composer (Stage 4) **does not implement motion**. The field is kept in the schema for future, but currently every preset (`slow_zoom_in`, etc.) renders identically to `static`. Setting motion has zero render effect today — just keeps the spec future-proof. |
 | **Subtitles default OFF** | `subtitles.enabled = false` in schema default + example. Overlay text crowded the cinematic frames. SRT is still exported next to `final.mp4` (upload as YT captions). |
@@ -72,9 +72,10 @@ These come from rounds of "we tried it and learned":
 | **Logo welcome card: full-screen edge-to-edge** | `render_logo_splash` uses cover semantics — scales the logo to fill the entire 720×1280 frame. The user's 1672×941 logo is 16:9, so it fills cleanly with no crop. No gradient backdrop, no welcome text. |
 | **Concurrency = 4 (was 3)** | Static images + 720p drop Chrome-equivalent worker RAM from 5 GB → 3.5 GB. 4 ffmpeg workers × 3.5 GB = 14 GB peak, safe on 32 GB. |
 | **Library is never deleted by `./clean`** | Library backgrounds are real GPU output (~5s each). Treated as user content. `./clean --library` flag was REMOVED; if you really need to drop one: `rm library/visuals/backgrounds/<name>.png` by hand. |
-| **Smart library short-circuit by image_key** | `library/visuals/backgrounds/_index.json` stores the image_key (sha256 of prompt+seed+style+size). On next run, the smart cache only reuses if the key matches; edit the prompt in JSON → it regenerates. |
+| **Smart library short-circuit by image_key** | `library/visuals/backgrounds/_index.json` stores the image_key (sha256 of prompt+seed+style+size). On next run, generated assets reuse only if the key matches; edit the prompt in JSON → it regenerates. Manually/Codex-created images already in `library/visuals/backgrounds/` without metadata are treated as curated assets and reused instead of regenerated. |
 | **Auto-normalizer on `load_episodes()`** | Cowork-generated specs sometimes use mood aliases (`melancholic`, `sad`), motion aliases (`slow_pan_left`, `fade_in`), or forget block IDs. The normalizer fixes these silently with INFO logs. See `src/thai_novel/spec.py:_normalize_episode_dict`. |
-| **Default voice: th-TH-NiwatNeural** | Calm Thai male narrator. Rate −10%. Don't change unless the user asks. (Female alternative: `th-TH-PremwadeeNeural`.) |
+| **Default voice: th-TH-PremwadeeNeural** | Warm Thai female narrator. Rate −10%. |
+| **One fixed background track** | `library/audio/background.mp3` is the only music/ambience bed. It loops across intro and narration and ducks under speech. Episode JSON has no background-audio keys; a missing file stops the render. |
 | **No `./novel preview`** | Removed when Remotion was removed. The render loop is fast enough that "edit JSON → `./generate` → play MP4" works as the preview. For audio-only checks, run `./novel narrate` and listen to `cache/<id>/blocks/*.wav` directly. |
 
 ---
@@ -110,9 +111,9 @@ thai-novel/
 │   │   ├── overlays/              # channel_logo.png lives here
 │   │   └── luts/
 │   ├── audio/
-│   │   ├── music/                 # cozy_piano_01.mp3, intro_theme.mp3, etc.
-│   │   ├── ambience/              # rain_soft.mp3, cafe_quiet.mp3, etc.
-│   │   └── sfx/
+│   │   ├── background.mp3         # fixed CC0 real-piano Chopin recording
+│   │   ├── SOURCE.md              # recording provenance and CC0 evidence
+│   │   └── sfx/                   # optional cue effects referenced by library://sfx/...
 │   └── fonts/                     # optional .ttf/.otf override; macOS defaults work
 │
 ├── cache/                         # content-addressed (gitignored; `./clean` wipes)
@@ -218,9 +219,8 @@ The full schema lives in `src/thai_novel/spec.py`. Quick reference:
   "image_generation": { "engine", "steps", "guidance", "seed", "gen_*", ... },   // FIXED
   "visual_style":     { "base_prompt", "negative_prompt", "color_grade" },        // FIXED
   "characters":       { "male_lead": {...}, "female_lead": {...} },               // PER_SERIES
-  "audio":            { "music_bed", "ambience" },                                 // FIXED
   "subtitles":        { "enabled": false, ... },                                   // FIXED, default off
-  "intro":            { "channel_name", "logo_ref", "background_music_ref" },     // FIXED
+  "intro":            { "channel_name", "logo_ref" },                             // FIXED
   "chapters":         [ Chapter, Chapter, ... ],                                   // PER_EPISODE — the story
   "end_card":         { "next_episode_title", "message" }                          // PER_EPISODE
 }
@@ -285,16 +285,16 @@ The composer (Stage 4) ignores motion in the current build. All chapter images r
 
 1. **Never edit generated files.** `cache/<id>/timeline.json`, `cache/<id>/blocks/*.wav`, `novels/<id>/output/final.mp4` — all regenerated. Edit `in/<id>.json`.
 
-2. **Narration blocks: 1500–3000 Thai chars.** Shorter = choppy. Longer = retention drops. `./novel validate` warns at <800 or >4000.
+2. **Narration blocks: 1500–3000 Thai chars; source episodes target 8000–10000 Thai chars.** A block should stay in the 1500–3000 Thai-char sweet spot, but one `epNN` source episode should contain enough blocks to reach roughly 8000–10000 Thai chars. Recap is limited to 1-3 short sentences per episode, woven into an active scene only when the remembered fact changes a present decision. Never reuse recap wording or add generic summary paragraphs. Before delivery, scan all active episodes for duplicate paragraphs, sentences, and long shared fragments. Run `segment_thai_with_pauses()` and split natural paragraphs until no TTS segment exceeds 400 chars, without making every sentence its own paragraph. `./novel validate` warns at <800 or >4000 per block.
 
-3. **One visual anchor per source episode.** Each `epNN.json` should have exactly one chapter and one visual anchor. Put multiple narration blocks under that chapter when needed.
+3. **One visual anchor per source episode.** Each `epNN.json` should have exactly one chapter and one visual anchor. Put multiple narration blocks under that chapter when needed. The image itself should be an episode key visual/poster: all relevant visible characters, the dominant setting/event, and exactly one readable title set and no duplicate title layer, logo, signature, random text, or watermark.
 
-4. **Prefer `ref: "library://..."` over fresh `prompt`.** New workflow uses OpenAI/Codex-generated images saved to `library/visuals/backgrounds/<series-slug>_epNN.png`, then referenced as `library://backgrounds/<series-slug>_epNN`.
+4. **Prefer OpenAI/Codex pre-generated images.** `in/ep0.json` must include `open_ai_instruction` with exact output paths and prompts. Generate the shared whole-story poster to `novels/poster/background.png`, and each episode key visual to `library/visuals/backgrounds/<series-slug>_epNN.png`. Episode JSON may keep `prompt` + `save_to_library_as`; when the file already exists, `./generate` reuses it and skips local image generation.
 
 5. **Total unique anchors per source episode: exactly 1.** Publication videos may contain up to 10 images because they group up to 10 source episodes.
 
    Grouped publication video flow:
-   - Welcome narration: `ยินดีต้อนรับเข้าสู่ช่อง T H A I channel ขอให้สนุกกับการรับฟังครับ`; visual is the channel image/logo.
+   - Welcome narration: `ยินดีต้อนรับเข้าสู่ช่อง T H A I Novel ขอให้สนุกกับการรับฟังครับ`; visual is the channel image/logo.
    - Episode title narration: `เรื่อง {story_name} ตอนที่ N {ep_title}`.
    - Episode narration: show `library://backgrounds/<series-slug>_epNN` while reading.
    - Repeat title + episode image + narration for the next episode until the 10-episode group ends.

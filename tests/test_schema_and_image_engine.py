@@ -9,6 +9,8 @@ Covers:
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -408,6 +410,64 @@ def test_pipeline_cache_keyed_by_engine(monkeypatch):
     fake_loader("sdxl-lightning-4step")
     assert generate._pipeline_engine == "sdxl-lightning-4step"
     assert calls == ["sdxl-turbo", "sdxl-lightning-4step"]
+
+
+def test_manual_library_asset_without_metadata_is_reused(tmp_path: Path, monkeypatch):
+    """
+    Codex/OpenAI-generated episode images are curated assets. If the PNG exists
+    in the library but has no _index.json metadata, Stage 2 should reuse it
+    instead of regenerating with local SDXL.
+    """
+    import thai_novel.images as images
+
+    existing = tmp_path / "library" / "visuals" / "backgrounds" / "manual.png"
+    existing.parent.mkdir(parents=True)
+    existing.write_bytes(b"manual image placeholder")
+
+    ep = Episode.model_validate({
+        "project": {
+            "id": "manual-asset-ep01",
+            "title": "ทดสอบ",
+            "resolution": "1280x720",
+        },
+        "chapters": [{
+            "id": "ch_01",
+            "title": "ทดสอบ",
+            "visual_anchor": {
+                "prompt": "manual image prompt",
+                "save_to_library_as": "manual",
+                "motion": "static",
+            },
+            "narration_blocks": [{
+                "id": "ch01_b1",
+                "mood": "cozy",
+                "narration": "ก" * 1500,
+            }],
+        }],
+    })
+
+    def fail_generate(*args, **kwargs):
+        raise AssertionError("manual/Codex library assets must not regenerate")
+
+    def fake_upscale(src, out, method):
+        assert src == existing
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(b"upscaled")
+
+    monkeypatch.setattr(images, "resolve_lib", lambda ref, root: existing)
+    monkeypatch.setattr(images, "get_metadata", lambda ref, root: None)
+    monkeypatch.setattr(images, "generate_image", fail_generate)
+    monkeypatch.setattr(images, "upscale_to_1080p", fake_upscale)
+
+    result = images.resolve_anchor(
+        "ch_01",
+        ep.chapters[0].visual_anchor,
+        ep,
+        tmp_path,
+    )
+
+    assert result.src_kind == "library"
+    assert result.image_path_1080p.read_bytes() == b"upscaled"
 
 
 # ── HolyItem schema (Four Thrones) — import only if simulation is present ───

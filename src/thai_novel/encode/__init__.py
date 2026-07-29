@@ -2,8 +2,7 @@
 Phase E: final mux.
 
 Takes the composed raw MP4 (video + narration baked in) and adds:
-  - music bed track (sidechain-ducked under narration)
-  - ambience track (under everything)
+  - the fixed channel background track (sidechain-ducked under narration)
   - loudness normalization to -14 LUFS (YouTube standard)
   - SRT + chapter_markers exports
 
@@ -17,9 +16,10 @@ import asyncio
 import logging
 from pathlib import Path
 
-from ..images.library import resolve as resolve_lib
-
 log = logging.getLogger("thai_novel.encode")
+
+BACKGROUND_AUDIO_PATH = Path("library/audio/background.mp3")
+BACKGROUND_VOLUME_DB = -22.0
 
 
 async def _run_ff(args: list[str]) -> tuple[int, bytes]:
@@ -123,62 +123,35 @@ async def finalize(
     out_dir: Path,
 ) -> dict:
     """
-    Mux: video (from the composed raw MP4) + music_bed (looped) + ambience (looped) + loudnorm.
+    Mux the video with the one fixed, looped channel background and loudnorm.
 
     Returns: {"mp4": Path, "srt": Path, "chapters_txt": Path, "description": Path}
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     final_mp4 = out_dir / "final.mp4"
 
-    mb = timeline["audio_config"]["music_bed"]
-    amb = timeline["audio_config"]["ambience"]
-    library_root = project_root / "library"
-
-    music_path = None
-    if mb.get("default"):
-        music_path = resolve_lib(mb["default"], library_root)
-    if music_path is None and mb.get("by_mood"):
-        for ref in mb["by_mood"].values():
-            music_path = resolve_lib(ref, library_root)
-            if music_path:
-                break
-
-    ambience_path = None
-    if amb.get("default"):
-        ambience_path = resolve_lib(amb["default"], library_root)
+    background_path = project_root / BACKGROUND_AUDIO_PATH
+    if not background_path.is_file():
+        raise FileNotFoundError(
+            "Required fixed background audio is missing: "
+            f"{background_path}. Restore library/audio/background.mp3 before rendering."
+        )
 
     duration = float(timeline["total_duration_sec"])
 
     args = ["-y", "-hide_banner", "-loglevel", "warning"]
     args += ["-i", str(remotion_mp4)]
+    args += [
+        "-stream_loop", "-1", "-t", f"{duration:.3f}",
+        "-i", str(background_path),
+    ]
 
-    filter_lines: list[str] = []
-    audio_inputs = ["[0:a]"]
-    next_idx = 1
-
-    if music_path:
-        args += ["-stream_loop", "-1", "-t", f"{duration:.3f}", "-i", str(music_path)]
-        filter_lines.append(
-            f"[{next_idx}:a]volume={mb['volume_db']}dB,aresample=22050[mraw]"
-        )
-        filter_lines.append(
-            f"[mraw][0:a]sidechaincompress=threshold=0.05:ratio=8:attack=10:release=400[mducked]"
-        )
-        audio_inputs.append("[mducked]")
-        next_idx += 1
-
-    if ambience_path:
-        args += ["-stream_loop", "-1", "-t", f"{duration:.3f}", "-i", str(ambience_path)]
-        filter_lines.append(
-            f"[{next_idx}:a]volume={amb['volume_db']}dB,aresample=22050[amb]"
-        )
-        audio_inputs.append("[amb]")
-        next_idx += 1
-
-    mix_inputs = "".join(audio_inputs)
-    filter_lines.append(
-        f"{mix_inputs}amix=inputs={len(audio_inputs)}:duration=longest:normalize=0[mixed]"
-    )
+    filter_lines = [
+        f"[1:a]volume={BACKGROUND_VOLUME_DB}dB,aresample=44100[bgraw]",
+        "[bgraw][0:a]sidechaincompress="
+        "threshold=0.05:ratio=8:attack=10:release=400[bgducked]",
+        "[0:a][bgducked]amix=inputs=2:duration=longest:normalize=0[mixed]",
+    ]
     filter_lines.append(
         "[mixed]loudnorm=I=-14:LRA=11:TP=-1.5[aout]"
     )
@@ -220,4 +193,10 @@ async def finalize(
     return {"mp4": final_mp4, "srt": srt_path, "chapters_txt": chap_path, "description": desc_path}
 
 
-__all__ = ["finalize", "write_srt", "write_chapter_markers", "write_description"]
+__all__ = [
+    "BACKGROUND_AUDIO_PATH",
+    "finalize",
+    "write_srt",
+    "write_chapter_markers",
+    "write_description",
+]

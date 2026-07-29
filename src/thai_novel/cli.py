@@ -27,6 +27,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeEl
 from rich.table import Table
 
 from . import __version__
+from .encode import BACKGROUND_AUDIO_PATH
 from .spec import Episode, load_episodes, load_story_bible
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -318,6 +319,13 @@ def doctor() -> None:
     for d in ("in", "novels", "library", "src/thai_novel"):
         p = PROJECT_ROOT / d
         checks.append((f"./{d}/", p.is_dir(), "ok" if p.is_dir() else "missing"))
+
+    background = PROJECT_ROOT / BACKGROUND_AUDIO_PATH
+    checks.append((
+        "Fixed background audio",
+        background.is_file(),
+        str(BACKGROUND_AUDIO_PATH) if background.is_file() else f"missing: {BACKGROUND_AUDIO_PATH}",
+    ))
 
     t = Table(show_header=True, header_style="bold")
     t.add_column("Check"); t.add_column("Status"); t.add_column("Detail")

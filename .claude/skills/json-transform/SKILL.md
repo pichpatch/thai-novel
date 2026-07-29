@@ -48,7 +48,7 @@ Skip these and you will invent FIXED values that contradict the channel's standa
 
 | Tier | Source |
 | --- | --- |
-| **FIXED** (voice, image gen, visual style, music palette, intro logo, subtitle config) | Copy from `in/template.example.json` or from a sibling `in/*.json`. NEVER invent these. |
+| **FIXED** (voice, image gen, visual style, intro logo, subtitle config) | Copy from `in/template.example.json` or from a sibling `in/*.json`. Background audio is fixed in the pipeline, not JSON. NEVER invent these. |
 | **PER_SERIES** (characters, theme, poster prompt, shared image style) | Copy from `in/ep0.json` or prior episode. If none exists, ASK once. |
 | **PER_EPISODE** (`project.id`, `title`, `episode`, `short_description`, `description_context`, one `chapter`, `narration_blocks`, `end_card`) | This is where your work goes — invented in Mode A, mapped from sources in Mode B. |
 
@@ -66,22 +66,27 @@ Skip these and you will invent FIXED values that contradict the channel's standa
 
 2. **Create or update `in/ep0.json` BEFORE writing prose:**
    - Whole-story summary from beginning to ending.
-   - Shared poster prompt for `novels/poster/background.png`; this poster is reused for every YouTube post for the story.
+   - Shared poster prompt for `novels/poster/background.png`; this poster is reused for every YouTube post for the story and must summarize the whole story.
    - Shared episode-image style prompt.
+   - `open_ai_instruction` with exact OpenAI/Codex image tasks: poster output path, every episode image output path, library refs, and final prompts.
    - Character bible.
    - Episode plan with `episode`, `title`, `short_description`, `description_context`, `image_prompt`, and `narration_prompt`.
    - Show the short story, poster prompt, and episode plan to the user before writing the full episode files when the user asks for preview/approval.
 
 3. **Write narration blocks**:
-   - 1500–3000 Thai chars per block, target ~2000.
+   - 1500–3000 Thai chars per block, target ~2000 per block.
+   - One source episode should reach roughly 8000–10000 Thai chars total across multiple blocks.
+   - Recap at most 1-3 short sentences per episode, woven into an active scene and only when the remembered fact changes a present decision. Never add a standalone summary paragraph or reuse recap wording from another episode.
+   - Split long paragraphs at natural action, speaker, cause/effect, or time turns so `segment_thai_with_pauses()` produces no segment over 400 chars. Do not put every short sentence in its own paragraph; paragraph breaks are longer pauses.
    - One mood per block — start a new block if mood shifts.
    - Specific physical details, deadpan tone, inner thoughts, no fourth-wall breaks.
    - Reuse characters' names + appearance descriptors exactly from `characters[]`.
 
 4. **Place exactly one visual anchor per episode**:
    - Preferred: generate the image with OpenAI/Codex and save it as `library/visuals/backgrounds/<series-slug>_epNN.png`.
-   - In `epNN.json`, set `visual_anchor.ref` to `library://backgrounds/<series-slug>_epNN`.
-   - Keep the English prompt in `in/ep0.json` under that episode's `image_prompt`.
+   - The episode image must be an episode key visual/poster: it summarizes that episode, shows the relevant visible characters and setting/event, and includes exactly one readable title set and no duplicate title layer, logo, signature, random text, or watermark.
+   - In `epNN.json`, either set `visual_anchor.ref` to `library://backgrounds/<series-slug>_epNN` after the image exists, or keep `prompt` + `save_to_library_as` as fallback. If the library PNG already exists, the pipeline reuses it and skips local image generation.
+   - Keep the final English prompt in `in/ep0.json` under that episode's `image_prompt` and in `open_ai_instruction.episode_images[]`.
    - Do not use `anchor_override` in the new workflow.
    - Local SDXL `prompt` + `save_to_library_as` remains a fallback only.
 
@@ -176,13 +181,15 @@ Skip these and you will invent FIXED values that contradict the channel's standa
 These rules govern your output regardless of how you arrived at it:
 
 - **One source episode = one chapter = one visual anchor.** All narration blocks in that episode show the same image. Mood does NOT change the image.
-- **Mood drives music + pacing**, not visuals. Music is picked from `audio.music_bed.by_mood`, narration speed/pauses from `tts.mood_pauses`.
+- **Mood drives narration pacing**, not visuals or background audio. Pacing comes from `tts.mood_pauses`; the pipeline always uses `library/audio/background.mp3`.
 - **Do not use per-scene images** in the new workflow. `anchor_override` is legacy escape hatch only.
 - **Image budget**: exactly 1 episode image per source episode, plus 1 poster for the whole story.
+- **Poster rule**: the shared poster at `novels/poster/background.png` must summarize the whole story as poster art with exactly one readable story title and no duplicate title layer, logo, signature, random text, or watermark.
+- **Episode image rule**: each episode image must look like an episode ad/key visual with exactly one readable title set and no duplicate title layer, logo, signature, random text, or watermark, plus the episode's related characters and dominant setting/event.
 - **Library convention**: episode images are series-namespaced, e.g. `shadow_dynasty_ep01`, and referenced as `library://backgrounds/shadow_dynasty_ep01`.
 - **Publication grouping**: `./generate` groups up to 10 source episodes into one video and writes a description containing all included short descriptions plus any `project.description_context` relationship tree.
 - **Grouped video sequence**:
-  1. Speak `ยินดีต้อนรับเข้าสู่ช่อง T H A I channel ขอให้สนุกกับการรับฟังครับ` while showing the channel image/logo.
+  1. Speak `ยินดีต้อนรับเข้าสู่ช่อง T H A I Novel ขอให้สนุกกับการรับฟังครับ` while showing the channel image/logo.
   2. For each source episode, speak `เรื่อง {story_name} ตอนที่ N {ep_title}`.
   3. Show that episode's image and read that episode's narration.
   4. Repeat episode title + episode image + narration until the group reaches 10 episodes.
@@ -260,6 +267,10 @@ To override aesthetic, set `image_generation.base_model` to any SDXL repo id (e.
 ### Narration blocks
 
 - **1500–3000 Thai chars per block** is the sweet spot. CLI warns at <800 or >4000.
+- **8000–10000 Thai chars per source episode** is the current audiobook target. Use multiple blocks to reach it.
+- **Recap is tightly limited:** at most 1-3 short sentences per episode, inside an active scene, and only when the recalled fact affects a present choice, risk, or relationship. Do not repeat the apocalypse premise, power roster, theme, or moral as generic exposition. Never reuse a sentence or paragraph from another episode.
+- **Repetition QA is mandatory:** scan all active episodes for duplicate paragraphs, duplicate sentences, and long shared text fragments before delivery. Rewrite accidental matches even when they occur in different blocks or files.
+- **TTS paragraph QA is mandatory:** run `segment_thai_with_pauses()` and keep every segment at 400 chars or less. Paragraph breaks should mark genuine thought/action/time turns, not every sentence.
 - A block is a *unit of pacing*, not a sentence. One mood at a time.
 - Pure Thai prose. No English words inside narration.
 - No dialogue tags — render dialogue as reported speech (`"เขาบอกว่า ..."` not `"เขา: ..."`).
@@ -270,6 +281,7 @@ To override aesthetic, set `image_generation.base_model` to any SDXL repo id (e.
 ## Quality bar — self-check before declaring done (BOTH modes)
 
 - [ ] `in/ep0.json` exists and contains the whole-story summary, poster prompt, shared image style, characters, and episode plan
+- [ ] `in/ep0.json` includes `open_ai_instruction` with exact paths/prompts for `novels/poster/background.png` and every `library/visuals/backgrounds/<series-slug>_epNN.png`
 - [ ] Poster prompt clearly says it is a shared YouTube/posting poster, not the only in-video image
 - [ ] File path is `in/epNN.json` (two-digit episode number only) and does NOT end with `.example.json`
 - [ ] `project.id` is slug-safe, lowercase, series-prefixed
@@ -360,7 +372,7 @@ Read `in/ep0.json` and the target file first. Preserve everything FIXED + PER_SE
 }
 ```
 
-For real episodes, ALSO include `tts`, `image_generation`, `visual_style`, `characters`, `audio`, `subtitles`, `intro`, `end_card` — copy these from `in/template.example.json` and only adjust `intro.channel_name` / `characters.*` per series.
+For real episodes, ALSO include `tts`, `image_generation`, `visual_style`, `characters`, `subtitles`, `intro`, `end_card` — copy these from `in/template.example.json` and only adjust `intro.channel_name` / `characters.*` per series. Never add background-audio keys.
 
 ## Reference: minimal valid `in/ep0.json`
 
@@ -372,6 +384,20 @@ For real episodes, ALSO include `tts`, `image_generation`, `visual_style`, `char
   "whole_story_summary": "สรุปทั้งเรื่องตั้งแต่ต้นจนจบ",
   "poster_prompt": "English prompt for the whole-series poster",
   "episode_image_style_prompt": "English shared style prompt for every episode image",
+  "open_ai_instruction": {
+    "poster": {
+      "output_path": "novels/poster/background.png",
+      "prompt": "English prompt for the whole-story poster"
+    },
+    "episode_images": [
+      {
+        "episode": 1,
+        "output_path": "library/visuals/backgrounds/series_slug_ep01.png",
+        "library_ref": "library://backgrounds/series_slug_ep01",
+        "prompt": "English prompt for episode key visual with exactly one readable title set and no duplicate title layer, logo, signature, random text, or watermark"
+      }
+    ]
+  },
   "characters": {
     "lead_male": {
       "id": "lead_male",

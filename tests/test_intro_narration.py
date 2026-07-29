@@ -1,7 +1,7 @@
 """
 Intro narration auto-format rules:
 
-  channel_name:    always "T-H-A-I Novel" in the template (FIXED)
+  channel_name:    always "T H A I Novel" in the template (FIXED)
   title_narration: auto-generated as "{series} ตอนที่ {N} {title}" when
                    the user leaves it null AND project.series + episode are set
 
@@ -21,10 +21,10 @@ from thai_novel.spec import Episode
 
 
 def test_template_channel_name_is_thai_novel_letters_spelled():
-    """The TTS engine must read 'T-H-A-I Novel' to pronounce the channel name."""
+    """The TTS engine must read 'T H A I Novel' to pronounce the channel name."""
     d = json.loads(Path("in/template.example.json").read_text(encoding="utf-8"))
     ep = d[0] if isinstance(d, list) else d
-    assert ep["intro"]["channel_name"] == "T-H-A-I Novel"
+    assert ep["intro"]["channel_name"] == "T H A I Novel"
 
 
 def test_template_title_narration_is_absent_or_null():
@@ -58,7 +58,7 @@ def _make_episode(series: str | None, episode: int | None, title: str,
         },
         "intro": {
             "show": True,
-            "channel_name": "T-H-A-I Novel",
+            "channel_name": "T H A I Novel",
             "title_narration": explicit_title_narration,
         },
         "characters": {"a": {"appearance": "x"}},

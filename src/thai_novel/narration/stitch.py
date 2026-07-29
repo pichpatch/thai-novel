@@ -56,10 +56,16 @@ def stitch_block(
     out_path: Path,
     leading_silence_ms: int = 200,
     trailing_silence_ms: int = 600,
+    pause_after_ms: list[int] | None = None,
 ) -> float:
     """
     Concatenate sentence WAVs into one block WAV. Returns duration in seconds.
     """
+    if pause_after_ms is not None and len(pause_after_ms) != max(0, len(sentence_wavs) - 1):
+        raise ValueError(
+            "pause_after_ms must contain exactly one pause per gap between sentences"
+        )
+
     parts: list[np.ndarray] = [_silence(leading_silence_ms)]
     for i, wav_path in enumerate(sentence_wavs):
         audio, sr = sf.read(str(wav_path), dtype="float32", always_2d=False)
@@ -68,7 +74,8 @@ def stitch_block(
         audio = _hann_taper(audio)
         parts.append(audio)
         if i < len(sentence_wavs) - 1:
-            parts.append(_silence(sentence_pause_ms))
+            pause_ms = pause_after_ms[i] if pause_after_ms is not None else sentence_pause_ms
+            parts.append(_silence(pause_ms))
     parts.append(_silence(trailing_silence_ms))
 
     full = np.concatenate(parts)

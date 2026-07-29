@@ -101,8 +101,8 @@ def resolve_anchor(
         lib_ref = f"library://backgrounds/{anchor.save_to_library_as}"
         existing = resolve_lib(lib_ref, library_root)
         if existing is not None:
-            meta = get_metadata(lib_ref, library_root) or {}
-            stored_key = meta.get("image_key")
+            meta = get_metadata(lib_ref, library_root)
+            stored_key = (meta or {}).get("image_key")
             if stored_key == current_key:
                 log.info(
                     f"library hit: {anchor.save_to_library_as} (inputs unchanged)"
@@ -113,8 +113,19 @@ def resolve_anchor(
                     anchor_id=anchor_id, src_kind="library",
                     image_path_1080p=out, gen_cache_path=existing,
                 )
+            if meta is None:
+                log.info(
+                    f"library hit: {anchor.save_to_library_as} "
+                    "(manual/Codex asset, no metadata)"
+                )
+                out = upscaled_dir / f"{anchor_id.replace('/', '__')}.png"
+                upscale_to_1080p(existing, out, method=episode.image_generation.upscaler)
+                return ResolvedAnchor(
+                    anchor_id=anchor_id, src_kind="library",
+                    image_path_1080p=out, gen_cache_path=existing,
+                )
             else:
-                reason = "no metadata" if not stored_key else "prompt/seed/style changed"
+                reason = "no image_key" if not stored_key else "prompt/seed/style changed"
                 log.info(
                     f"library miss: {anchor.save_to_library_as} ({reason}) — regenerating"
                 )

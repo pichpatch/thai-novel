@@ -44,11 +44,12 @@ cover/*.webp
 !cover/README.md
 !cover/default.png
 
-# ─── Library audio (loops, ambience) — large binaries kept local ────────────
+# ─── Optional library audio — large binaries kept local ─────────────────────
 library/audio/**/*.mp3
 library/audio/**/*.wav
 library/audio/**/*.ogg
 library/audio/**/*.flac
+!library/audio/background.mp3
 !library/audio/**/_index.json
 
 # ─── Voice models (Piper .onnx) — large, kept local ─────────────────────────

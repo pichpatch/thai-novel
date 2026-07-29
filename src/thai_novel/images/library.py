@@ -4,7 +4,7 @@ Reusable visual library.
 References use the `library://` URI scheme:
   library://backgrounds/cafe_rainy_night   ->  library/visuals/backgrounds/cafe_rainy_night.{png,jpg,webp}
   library://characters/female_lead_blush   ->  library/visuals/characters/female_lead_blush.png
-  library://music/cozy_piano_01_ai            ->  library/audio/music/cozy_piano_01_ai.{mp3,wav,ogg}
+  library://sfx/cup_clink                   ->  library/audio/sfx/cup_clink.{mp3,wav,ogg}
 
 This module resolves refs to disk paths and promotes generated images into
 the library when `save_to_library_as` is set.
@@ -25,8 +25,6 @@ KIND_FOLDERS = {
     "characters":   ("visuals/characters",   (".png", ".jpg", ".jpeg", ".webp")),
     "overlays":     ("visuals/overlays",     (".png", ".webp")),
     "luts":         ("visuals/luts",         (".cube", ".png")),
-    "music":        ("audio/music",          (".mp3", ".wav", ".ogg", ".flac")),
-    "ambience":     ("audio/ambience",       (".mp3", ".wav", ".ogg", ".flac")),
     "sfx":          ("audio/sfx",            (".mp3", ".wav", ".ogg", ".flac")),
 }
 

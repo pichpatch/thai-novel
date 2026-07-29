@@ -63,7 +63,6 @@ def compile_timeline(
             "title_duration_sec": title_dur,
             "welcome_audio_path": str(welcome_block.wav_path.relative_to(project_root)),
             "title_audio_path": str(title_block.wav_path.relative_to(project_root)),
-            "background_music_ref": episode.intro.background_music_ref,
             "logo_ref": episode.intro.logo_ref,
             "background_image_path": (
                 str(anchor_by_id["intro_background"].image_path_1080p.relative_to(project_root))
@@ -105,16 +104,6 @@ def compile_timeline(
                 "image_path": str(ax.image_path_1080p.relative_to(project_root)),
                 "motion": motion,
                 "color_grade": color_grade,
-                "music_ref": (
-                    b.music_override
-                    or episode.audio.music_bed.by_mood.get(b.mood)
-                    or episode.audio.music_bed.default
-                ),
-                "ambience_ref": (
-                    b.ambience_override
-                    or episode.audio.ambience.by_mood.get(b.mood)
-                    or episode.audio.ambience.default
-                ),
                 "subtitles": [
                     {
                         "start_sec": cue.start_sec,
@@ -171,7 +160,6 @@ def compile_timeline(
         "subtitles_config": episode.subtitles.model_dump(),
         "visual_style": episode.visual_style.model_dump(),
         "characters": {k: v.model_dump() for k, v in episode.characters.items()},
-        "audio_config": episode.audio.model_dump(),
         "intro": intro_section,
         "chapters": chapter_sections,
         "end_card": end_card_section,

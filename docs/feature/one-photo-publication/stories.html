@@ -8,7 +8,9 @@
   <h1>User Stories</h1>
   <ol>
     <li>As the channel owner, I want <code>ep0.json</code> to store the whole story and prompts so every AI agent understands the same plan.</li>
+    <li>As the channel owner, I want <code>ep0.json</code> to include <code>open_ai_instruction</code> so Codex can pre-generate the poster and episode images into the exact paths before rendering.</li>
     <li>As the channel owner, I want one image per episode so visual production is faster and more consistent.</li>
+    <li>As the channel owner, I want each episode image to summarize that episode like a series ad poster as clean visual art with exactly one readable title set and no duplicate title layer, logo, signature, random text, or watermark.</li>
     <li>As the channel owner, I want up to 10 episodes in one MP4 so uploads can be packaged as longer compilation videos.</li>
     <li>As the channel owner, I want the grouped description to include every episode's short description so I can paste it into YouTube.</li>
     <li>As the channel owner, I want the grouped description to include a character relationship tree from those 10 episodes so viewers can understand the current character web.</li>
@@ -18,10 +20,12 @@
   <h2>Acceptance Criteria</h2>
   <ul>
     <li><code>./novel validate ep0</code> validates the story bible.</li>
+    <li><code>ep0.json</code> includes <code>open_ai_instruction.poster.output_path</code> and <code>open_ai_instruction.episode_images[]</code> with output paths, library refs, and prompts.</li>
     <li><code>./generate</code> skips <code>ep0.json</code>.</li>
     <li>Multiple active <code>epNN.json</code> files are chunked into groups of 10 by default.</li>
     <li><code>./generate --group-size 1</code> preserves one-video-per-source-episode behavior.</li>
-    <li>A grouped video starts with the channel image and welcome narration: ยินดีต้อนรับเข้าสู่ช่อง T H A I channel ขอให้สนุกกับการรับฟังครับ.</li>
+    <li>A grouped video starts with the channel image and welcome narration: ยินดีต้อนรับเข้าสู่ช่อง T H A I Novel ขอให้สนุกกับการรับฟังครับ.</li>
+    <li>The channel name in templates and generated episodes is <code>T H A I Novel</code>.</li>
     <li>For each included episode, the clip speaks the episode title line, then shows that episode image while reading narration.</li>
     <li><code>description.txt</code> includes a relationship tree section when source episodes provide <code>project.description_context</code>.</li>
     <li>The relationship tree covers prior state, current changes, latest status, and small details for characters appearing in the grouped video.</li>

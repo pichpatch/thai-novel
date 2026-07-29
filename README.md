@@ -156,40 +156,24 @@ You need **at least one Thai-capable font** installed. macOS ships several by de
 
 ## 4. Assets you need to provide
 
-The pipeline references assets via the `library://` URI scheme. You drop files into `library/` and reference them by name in `in/<your-episode>.json`. The bundled `in/example.json` references **10 assets** — here's exactly what goes where:
+Visual and SFX assets use the `library://` URI scheme. Background music is a
+channel-level asset and is deliberately not configurable from episode JSON.
 
-### 4a. Music (5 files)
+### 4a. Background audio (included)
 
-Drop **looping royalty-free instrumental** tracks (60s+ each):
-
-```
-library/audio/music/
-├── intro_theme.mp3          ← under the welcome card (~5s of audio needed)
-├── cozy_piano_01.mp3        ← default music bed (used for chapters by default)
-├── playful_uke_01.mp3       ← for funny/playful narration blocks
-├── strings_warm_02.mp3      ← for romantic narration blocks
-└── piano_rain_01.mp3        ← for melancholy narration blocks
-```
-
-`.mp3`, `.wav`, `.ogg`, `.flac` all work. Suggested sources:
-- [Pixabay Music](https://pixabay.com/music/) — royalty-free, no attribution required
-- [Free Music Archive](https://freemusicarchive.org/) — CC-licensed
-- [Incompetech](https://incompetech.com/music/) — Kevin MacLeod's library (attribution required)
-
-### 4b. Ambience (3 files)
-
-Drop **loopable environmental sound** (60s+ each, low-volume background):
+The project uses exactly one processed real-piano recording of Chopin's
+public-domain *Nocturne in E-flat Major, Op. 9 No. 2*:
 
 ```
-library/audio/ambience/
-├── rain_soft.mp3            ← default ambience (rain on pavement)
-├── cafe_quiet.mp3           ← for cozy/funny moods (cafe murmur)
-└── rain_window.mp3          ← for melancholy moods (rain on glass)
+library/audio/background.mp3
 ```
 
-Sources: [SoundEffectsHub](https://soundeffectshub.com), [Pixabay SFX](https://pixabay.com/sound-effects/), or record your own.
+It loops from the channel intro through the end card and is automatically
+ducked under narration. Do not add `audio`, `music_bed`, `ambience`, or intro
+music keys to episode JSON. Rendering fails clearly if this file is missing.
+Recording provenance and CC0 evidence are in `library/audio/SOURCE.md`.
 
-### 4c. Logo (1 file)
+### 4b. Logo (1 file)
 
 ```
 library/visuals/overlays/channel_logo.png
@@ -200,7 +184,7 @@ library/visuals/overlays/channel_logo.png
 **Format**: PNG (transparent or solid background — both work).
 
 
-### 4d. Backgrounds (auto-generated, optional)
+### 4c. Backgrounds (auto-generated, optional)
 
 You don't need to provide background images. The example episode references:
 
@@ -212,22 +196,21 @@ library://backgrounds/cafe_rainy_night_exterior
 
 You can also drop your own hand-drawn or stock backgrounds into `library/visuals/backgrounds/` and reference them via `"ref": "library://backgrounds/<name>"` in the JSON.
 
-### 4e. Quick setup script
+### 4d. Quick setup script
 
 Drop your files and you're done:
 
 ```bash
-# After clone, copy your existing music/logo if you have them:
-cp /path/to/your/cozy_music.mp3   library/audio/music/cozy_piano_01.mp3
-cp /path/to/your/intro_music.mp3  library/audio/music/intro_theme.mp3
-cp /path/to/your/rain.mp3         library/audio/ambience/rain_soft.mp3
+# The fixed background.mp3 is included. Add your logo:
 cp /path/to/your/logo.png         library/visuals/overlays/channel_logo.png
 
 # Now render:
 ./generate
 ```
 
-If any asset is missing, the pipeline skips it gracefully (no music, no ambience, fallback logo card with channel name). You won't get an error — you'll just get a thinner result.
+Missing optional visual assets use their documented fallback. A missing
+`library/audio/background.mp3` stops the render so a video cannot accidentally
+be published without its background bed.
 
 ---
 
@@ -244,7 +227,7 @@ That's the only command 99% of the time. It:
 2. Synthesizes narration via edge-tts
 3. Resolves / generates visual anchors via SDXL Turbo (with library cache)
 4. Composes the video via ffmpeg
-5. Mixes music + ambience + loudness normalization
+5. Mixes the fixed background track + loudness normalization
 6. Writes the final MP4 and YouTube helper files
 
 ### Output location
@@ -306,7 +289,7 @@ for the whole story, but the video switches to each episode's own image when
 that episode starts:
 
 ```text
-1. Spoken: ยินดีต้อนรับเข้าสู่ช่อง T H A I channel ขอให้สนุกกับการรับฟังครับ
+1. Spoken: ยินดีต้อนรับเข้าสู่ช่อง T H A I Novel ขอให้สนุกกับการรับฟังครับ
    Visual: channel image / channel logo
 
 2. Spoken: เรื่อง {story_name} ตอนที่ N {ep_title}
@@ -373,7 +356,7 @@ The content-addressable cache means **edits are fast**. Changing one sentence re
 ```
 
 `./clean` **never** deletes:
-- `library/` — your music, logo, backgrounds (curated content)
+- `library/` — fixed background audio, logo, backgrounds, and SFX
 - `models/` — SDXL weights (expensive to redownload)
 - `in/` — your JSON specs
 - `.venv/`, `node_modules/` — installs
@@ -426,8 +409,7 @@ To work on one explicitly: `./generate <name>` (without the `.json` extension).
                              ▼
                   [Stage 5] Final mux
                   ffmpeg adds:
-                    - music bed (sidechain-ducked under narration)
-                    - ambience layer
+                    - fixed background.mp3 (sidechain-ducked under narration)
                     - loudness normalization to -14 LUFS (YouTube standard)
                   → novels/<id>/output/final.mp4
 ```
@@ -510,10 +492,17 @@ Every new story starts with `in/ep0.json`. This file is not rendered. It is
 the whole-story bible for you, Codex, and other AI agents:
 
 - Whole-story summary
-- Shared poster prompt for `novels/poster/background.png`
+- Shared poster prompt for `novels/poster/background.png`; this image should
+  summarize the whole story and include the series name when text is needed
 - Shared image style prompt
+- `open_ai_instruction` with exact OpenAI/Codex image-generation tasks and
+  output paths
 - Character bible
-- Episode plan with one image prompt and one short description per episode
+- Episode plan with one key-visual prompt and one short description per
+  episode. Each episode image should summarize that episode, include the
+  relevant characters/settings, and contain exactly one readable title set
+  for the story name and episode title, with no duplicate title layer, logo,
+  signature, random text, or watermark.
 
 Validate it directly with:
 
@@ -540,7 +529,7 @@ Generate that episode photo with OpenAI/Codex, save it to
 
 The template (`in/template.example.json`) has **inline `_doc` comments on every field**, tagged by tier:
 
-- `FIXED` — set once for the channel. Don't change between episodes (voice, image style, music palette, intro logo).
+- `FIXED` — set once for the channel. Don't change between episodes (voice, image style, intro logo).
 - `PER_SERIES` — set once per series. Same across all episodes (characters, theme).
 - `PER_EPISODE` — changes every episode. THIS is where the story lives (`project.id`, one `chapter`, `narration_blocks`, `end_card`).
 
@@ -551,10 +540,9 @@ See `in/README.md` for the full field reference. Quick version:
 ```jsonc
 {
   "project":    { "id": "...", "title": "...", "episode": N, "short_description": "...", "description_context": "...", "resolution": "1280x720", "fps": 24 },
-  "tts":        { "voice": "th-TH-NiwatNeural", "rate": "-10%", "mood_pauses": {...} },
+  "tts":        { "voice": "th-TH-PremwadeeNeural", "rate": "-10%", "mood_pauses": {...} },
   "characters": { "male_lead": {...}, "female_lead": {...} },
-  "audio":      { "music_bed": {...}, "ambience": {...} },
-  "intro":      { "channel_name": "TH AI Novel", "logo_ref": "library://overlays/channel_logo" },
+  "intro":      { "channel_name": "T H A I Novel", "logo_ref": "library://overlays/channel_logo" },
   "chapters": [
     {
       "id": "ch_01",
@@ -565,13 +553,20 @@ See `in/README.md` for the full field reference. Quick version:
         "motion": "static"
       },
       "narration_blocks": [
-        { "id": "ch01_b1", "mood": "cozy", "narration": "Thai text, 1500-3000 chars" }
+        { "id": "ch01_b1", "mood": "cozy", "narration": "Thai text, 1500-3000 chars per block" }
       ]
     }
   ],
   "end_card": { "next_episode_title": "...", "message": "..." }
 }
 ```
+
+For audiobook pacing, one source episode should usually reach roughly
+8,000-10,000 Thai characters across multiple blocks. Keep recap to 1-3 short
+sentences inside an active scene, only when the recalled fact changes a present
+decision. Never reuse recap wording or add a standalone summary paragraph. Split
+paragraphs at genuine action, speaker, cause/effect, or time turns until no TTS
+segment exceeds 400 characters; do not make every short sentence a paragraph.
 
 ### Batch mode: max 10 episodes per video
 
@@ -611,11 +606,11 @@ one MP4 per source episode.
 | --- | --- | --- |
 | `./novel doctor` says "Thai font: not found" | macOS Supplemental fonts aren't installed | System Settings → Fonts → install Supplemental, OR drop a Thai font into `library/fonts/` |
 | `./generate` produces placeholder gradient images instead of real anime | `torch` + `diffusers` not installed | `.venv/bin/pip install torch diffusers transformers accelerate sentencepiece` then re-run |
-| Render is silent (no music) | Music files missing from `library/audio/music/` | See [§4a](#4a-music-5-files) — drop the referenced .mp3s |
+| Render stops because background audio is missing | `library/audio/background.mp3` was removed | Restore the included fixed track at that exact path |
 | Subtitle .srt isn't synced word-by-word | `mlx-whisper` not installed (using even-distribute fallback) | `.venv/bin/pip install mlx-whisper` |
 | Edge-tts errors with "rate limit" | Too many parallel sentences | The pipeline caps at 3 concurrent already; wait a minute and re-run |
 | Render fails at "ffmpeg mux failed" | Asset path issue | Check that all `library://...` refs in your JSON resolve to existing files |
-| Want a different voice | Edit `tts.voice` in JSON | See [Microsoft's Thai voice list](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support?tabs=tts#text-to-speech) — `th-TH-NiwatNeural` is the male voice |
+| Want a different voice | Edit `tts.voice` in JSON | Channel default is the warm female `th-TH-PremwadeeNeural` voice |
 | `./clean` accidentally too aggressive | It's not — `./clean` never deletes `library/`, `models/`, or `in/` | Verified by design |
 | Random Chrome processes left behind | Stale from old Remotion days, shouldn't happen now | `pkill -9 -f 'chrome-headless-shell'` (one-time) |
 
@@ -632,7 +627,7 @@ Practically:
 - ✅ **No royalties owed to the project**
 - ❗ You should preserve the copyright notice in any redistribution of the code
 
-**Note on generated content**: the videos this pipeline produces are *your* content. SDXL Turbo output and edge-tts audio are governed by their own licenses (both permit commercial use as of this writing — check current terms). Music, ambience, and logos you drop into `library/` are governed by the licenses of those individual files. The pipeline itself imposes no restrictions on the output.
+**Note on generated content**: the videos this pipeline produces are *your* content. SDXL Turbo output and edge-tts audio are governed by their own licenses (check current terms). The bundled background uses a public-domain Chopin composition and a real-piano performance released by its recording author under CC0; see `library/audio/SOURCE.md`. Logos and any SFX you add remain governed by their own licenses. The pipeline itself imposes no restrictions on the output.
 
 ---
 

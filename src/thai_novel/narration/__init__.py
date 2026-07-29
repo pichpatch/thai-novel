@@ -10,7 +10,7 @@ from pathlib import Path
 
 from ..spec import Episode, NarrationBlock
 from .align import SubtitleCue, align_block
-from .segment import segment_thai
+from .segment import segment_thai_with_pauses
 from .stitch import stitch_block
 from .synthesize import synthesize_many
 
@@ -47,21 +47,24 @@ class BlockNarration:
         }
 
 
-def _mood_settings(episode: Episode, mood: str) -> tuple[str, str, int]:
-    """Resolve (rate, pitch, sentence_pause_ms) for a given mood."""
+def _mood_settings(episode: Episode, mood: str) -> tuple[str, str, int, int]:
+    """Resolve (rate, pitch, sentence_pause_ms, paragraph_pause_ms)."""
     base = episode.tts
     pause = base.sentence_pause_ms
+    paragraph_pause = base.paragraph_pause_ms
     rate = base.rate
     pitch = base.pitch
     if mood in base.mood_pauses:
         mp = base.mood_pauses[mood]
         if mp.sentence_pause_ms is not None:
             pause = mp.sentence_pause_ms
+        if mp.paragraph_pause_ms is not None:
+            paragraph_pause = mp.paragraph_pause_ms
         if mp.rate_override:
             rate = mp.rate_override
         if mp.pitch_override:
             pitch = mp.pitch_override
-    return rate, pitch, pause
+    return rate, pitch, pause, paragraph_pause
 
 
 async def narrate_block(
@@ -71,15 +74,24 @@ async def narrate_block(
     block_wav_dir: Path,
     on_progress=None,
 ) -> BlockNarration:
-    rate, pitch, sentence_pause_ms = _mood_settings(episode, block.mood)
+    rate, pitch, sentence_pause_ms, paragraph_pause_ms = _mood_settings(episode, block.mood)
     voice = episode.tts.voice
-    sentences = segment_thai(block.narration)
+    sentences, pause_after_ms = segment_thai_with_pauses(
+        block.narration,
+        sentence_pause_ms=sentence_pause_ms,
+        paragraph_pause_ms=paragraph_pause_ms,
+    )
 
     payloads = [(s, voice, rate, pitch) for s in sentences]
     sentence_wavs = await synthesize_many(payloads, sentence_cache_dir, on_progress=on_progress)
 
     block_wav = block_wav_dir / f"{block.id}.wav"
-    duration = stitch_block(sentence_wavs, sentence_pause_ms, block_wav)
+    duration = stitch_block(
+        sentence_wavs,
+        sentence_pause_ms,
+        block_wav,
+        pause_after_ms=pause_after_ms,
+    )
 
     cues = align_block(block_wav, sentences, language="th")
 

@@ -111,7 +111,7 @@ class MoodPause(BaseModel):
 
 class TTSConfig(BaseModel):
     engine: TTSEngine = "edge-tts"
-    voice: str = "th-TH-NiwatNeural"
+    voice: str = "th-TH-PremwadeeNeural"
     rate: str = "-10%"
     pitch: str = "+0Hz"
     sentence_pause_ms: int = 200
@@ -157,7 +157,7 @@ class VisualStyle(BaseModel):
     # keywords in base_prompt) and your override wins.
     tone: Tone = "realistic"
     base_prompt: str = ""
-    negative_prompt: str = "low quality, blurry, bad anatomy, text, watermark"
+    negative_prompt: str = "low quality, blurry, bad anatomy, watermark"
     color_grade: ColorGrade = "warm_cozy"
 
 
@@ -179,25 +179,6 @@ class CharacterSpec(BaseModel):
     # When present AND chapter visual_anchor lists this character id, the
     # image-gen pipeline auto-loads IP-Adapter and conditions on this image.
     reference_image: str | None = None
-
-
-class MusicBed(BaseModel):
-    default: str | None = None                              # library://music/cozy_piano_01_ai
-    by_mood: dict[Mood, str] = Field(default_factory=dict)
-    volume_db: float = -22.0
-    crossfade_ms: int = 1500
-    duck_during_dialogue_db: float = -6.0
-
-
-class Ambience(BaseModel):
-    default: str | None = None
-    by_mood: dict[Mood, str] = Field(default_factory=dict)
-    volume_db: float = -28.0
-
-
-class AudioConfig(BaseModel):
-    music_bed: MusicBed = Field(default_factory=MusicBed)
-    ambience: Ambience = Field(default_factory=Ambience)
 
 
 class SubtitleConfig(BaseModel):
@@ -256,8 +237,6 @@ class NarrationBlock(BaseModel):
     duration_hint_sec: int | None = None                      # advisory only
     narration: str = Field(..., min_length=1)
     subtitle_emphasis: list[str] = Field(default_factory=list)
-    music_override: str | None = None
-    ambience_override: str | None = None
     anchor_override: VisualAnchor | None = None
     sfx_cues: list[SFXCue] = Field(default_factory=list)
 
@@ -303,8 +282,8 @@ class IntroConfig(BaseModel):
       1. Channel welcome:  "ยินดีต้อนรับสู่ช่อง {channel_name}"  (~5s)
       2. Episode title:    "ตอนที่ {episode}: {title}"           (~4s)
 
-    Both are spoken (edge-tts) and shown on screen with the channel logo
-    and a soft background music bed.
+    Both are spoken (edge-tts) and shown on screen with the channel logo.
+    The fixed channel background track is added during the final mux.
     """
 
     show: bool = True
@@ -313,7 +292,6 @@ class IntroConfig(BaseModel):
     welcome_duration_sec: float = 5.0
     title_narration: str | None = None                # auto: "ตอนที่ <n>: <title>"
     title_card_duration_sec: float = 4.5
-    background_music_ref: str | None = "library://music/intro_theme_ai"
     logo_ref: str | None = "library://overlays/channel_logo"
     background_anchor: VisualAnchor | None = None     # optional: background image during welcome
 
@@ -329,7 +307,6 @@ class Episode(BaseModel):
     image_generation: ImageGeneration = Field(default_factory=ImageGeneration)
     visual_style: VisualStyle = Field(default_factory=VisualStyle)
     characters: dict[str, CharacterSpec] = Field(default_factory=dict)
-    audio: AudioConfig = Field(default_factory=AudioConfig)
     subtitles: SubtitleConfig = Field(default_factory=SubtitleConfig)
     intro: IntroConfig = Field(default_factory=IntroConfig)
     chapters: list[Chapter] = Field(..., min_length=1)
@@ -399,6 +376,7 @@ class StoryBible(BaseModel):
     whole_story_summary: str
     poster_prompt: str
     episode_image_style_prompt: str | None = None
+    open_ai_instruction: dict[str, Any] | None = None
     characters: dict[str, CharacterSpec] = Field(default_factory=dict)
     episode_plan: list[StoryBibleEpisode] = Field(default_factory=list)
     notes_for_other_ai: list[str] = Field(default_factory=list)

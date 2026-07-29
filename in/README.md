@@ -26,13 +26,17 @@ so you can leave them in your edited copy or strip them out, either way works.
 
 ## New story workflow
 
-1. Fill `in/ep0.json` with the whole-story summary and prompts.
-2. Generate the shared story poster with OpenAI/Codex and save it as `novels/poster/background.png`. Reuse this same poster for every YouTube post for the story.
+1. Fill `in/ep0.json` with the whole-story summary, prompts, and `open_ai_instruction`.
+2. Generate the shared story poster with OpenAI/Codex and save it as `novels/poster/background.png`. Reuse this same poster for every YouTube post for the story. The poster should summarize the whole story, not just one episode.
 3. For each source episode, generate one image with OpenAI/Codex and save it as:
 
 ```text
 library/visuals/backgrounds/<series-slug>_epNN.png
 ```
+
+Each episode image should look like an episode key visual/poster: summarize that
+episode, show the relevant characters and setting/event, and include readable
+text for `{story_name}` plus `ตอนที่ N {ep_title}`.
 
 4. In each `epNN.json`, use one chapter only and reference the image:
 
@@ -50,7 +54,7 @@ library/visuals/backgrounds/<series-slug>_epNN.png
 For a grouped video such as `ep01` through `ep10`, the visible and spoken flow is:
 
 ```text
-1. Spoken: ยินดีต้อนรับเข้าสู่ช่อง T H A I channel ขอให้สนุกกับการรับฟังครับ
+1. Spoken: ยินดีต้อนรับเข้าสู่ช่อง T H A I Novel ขอให้สนุกกับการรับฟังครับ
    Visual: channel image / channel logo
 
 2. Spoken: เรื่อง {story_name} ตอนที่ 1 {ep01_title}
@@ -127,7 +131,6 @@ In automatic batch mode, grouped output ids become `<series-slug>-ep01-ep10`,
 | `image_generation` | object | no | hyper-sdxl-8step, MLX, 1024×576 |
 | `visual_style` | object | no | cinematic romantic anime |
 | `characters` | dict | no | `{}` |
-| `audio` | object | no | rain ambience, cozy piano |
 | `subtitles` | object | no | Sarabun, karaoke reveal |
 | `chapters` | array | **yes** | exactly one chapter per source episode |
 | `end_card` | object | no | shown for 8s |
@@ -163,6 +166,7 @@ In automatic batch mode, grouped output ids become `<series-slug>-ep01-ep10`,
   "paragraph_pause_ms": 800,
   "mood_pauses": {
     "cozy":      { "sentence_pause_ms": 380 },
+    "tense":     { "sentence_pause_ms": 320, "paragraph_pause_ms": 950, "rate_override": "-12%" },
     "funny":     { "sentence_pause_ms": 220, "rate_override": "-5%" },
     "romantic":  { "sentence_pause_ms": 460, "rate_override": "-15%" },
     "melancholy":{ "sentence_pause_ms": 500, "rate_override": "-18%" }
@@ -170,7 +174,10 @@ In automatic batch mode, grouped output ids become `<series-slug>-ep01-ep10`,
 }
 ```
 
-Per-mood overrides let you slow down for romantic peaks and speed up for funny beats.
+Per-mood overrides let you slow down for tense or romantic peaks and speed up for funny beats.
+Narration text may use explicit newlines to control audiobook pacing: normal
+sentence boundaries use `sentence_pause_ms`, while a newline between narration
+paragraphs uses `paragraph_pause_ms`.
 
 ## `image_generation`
 
@@ -233,26 +240,12 @@ free-form; `male_lead` and `female_lead` are convention.
 - `visual_anchor.characters` accepts up to **4 ids per scene**. Beyond 4, IP-Adapter quality degrades.
 - For tight close-ups, list 1 character. For 2-shot dialogue, list 2. Don't list characters who are not visible in the frame.
 
-## `audio`
+## Fixed background audio
 
-```jsonc
-{
-  "music_bed": {
-    "default":   "library://music/cozy_piano_01_ai",
-    "by_mood": {
-      "romantic": "library://music/strings_warm_02_ai",
-      "funny":    "library://music/playful_uke_01_ai"
-    },
-    "volume_db": -22,
-    "crossfade_ms": 1500,
-    "duck_during_dialogue_db": -6   // sidechain duck during narration
-  },
-  "ambience": {
-    "default": "library://ambience/rain_soft_ai",
-    "volume_db": -28
-  }
-}
-```
+Episodes do not contain background-audio keys. The final mux always loops
+`library/audio/background.mp3` from the channel intro through the end card and
+automatically ducks it under narration. Rendering stops with a clear error if
+that file is missing.
 
 ## `chapters[]`
 
@@ -308,16 +301,23 @@ Color grades: `warm_cozy`, `cool_night`, `golden_hour`, `melancholy_blue`,
   "id": "ch01_b1",
   "mood": "cozy",                    // see Mood table in CLAUDE.md
   "duration_hint_sec": 180,          // advisory; actual = TTS output length
-  "narration": "...",                // 1500–3000 Thai chars is the sweet spot
+  "narration": "...",                // 1500–3000 Thai chars per block is the sweet spot
   "subtitle_emphasis": ["นที"],     // these strings get bolded in subs
-  "music_override": null,            // optional per-block music swap
-  "ambience_override": null,
   "anchor_override": { ... },        // optional per-block visual swap (rare)
   "sfx_cues": [
     { "at_sec": 12, "ref": "library://sfx/cup_clink", "volume_db": -12 }
   ]
 }
 ```
+
+One `epNN` source episode should target roughly 8,000-10,000 Thai
+characters. In practice, write multiple narration blocks until the episode
+lands in that range. Recap must stay within 1-3 short sentences per episode,
+appear inside an active scene, and affect a present decision. Do not add generic
+summary paragraphs or reuse recap wording. Before delivery, scan every active
+episode for duplicate paragraphs, sentences, and long shared text fragments.
+Run `segment_thai_with_pauses()` and keep every segment at 400 characters or
+less. Use paragraph breaks for real thought/action/time turns, not every sentence.
 
 ---
 
@@ -373,6 +373,7 @@ Example:
 - `whole_story_summary`
 - `poster_prompt`
 - `episode_image_style_prompt`
+- `open_ai_instruction` with exact poster and episode-image output paths/prompts
 - `characters`
 - `episode_plan[]` with `episode`, `title`, `short_description`, optional
   `description_context`, and `image_prompt`

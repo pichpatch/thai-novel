@@ -12,7 +12,7 @@
       "",
       "Field-tier legend (used in _doc comments below):",
       "  FIXED        Set once per CHANNEL. Don't change between episodes.",
-      "                Voice, image style, intro logo, music palette, ffmpeg settings.",
+      "                Voice, image style, intro logo, ffmpeg settings.",
       "  PER_SERIES   Set once per SERIES. Shared by all episodes in the same series.",
       "                Characters, theme, series-level visual prompts.",
       "  PER_EPISODE  Changes EVERY episode. This is where the story lives.",
@@ -53,7 +53,7 @@
       "_doc": {
         "_intent": "FIXED — the channel's voice and pacing. Don't override unless you know why.",
         "engine": "FIXED | 'edge-tts' (Microsoft, free, networked). Alternative: 'piper' (local, slower setup)",
-        "voice": "FIXED | 'th-TH-NiwatNeural' is the calm male narrator (current channel default). Other Thai voices: th-TH-PremwadeeNeural (female, warmer/cozier).",
+        "voice": "FIXED | 'th-TH-PremwadeeNeural' is the warm female narrator and current channel default.",
         "rate": "FIXED | speech rate. '-10%' = 10% slower than baseline. Cozy/romantic stories want -10% to -15%",
         "pitch": "FIXED | '+0Hz' = unchanged. Use '+1Hz' / '-1Hz' to nudge brightness; bigger values sound robotic",
         "sentence_pause_ms": "FIXED | gap between sentences in milliseconds. 300 = brisk, 400 = cozy, 500 = melancholy",
@@ -61,7 +61,7 @@
         "mood_pauses": "FIXED | per-mood overrides. Pipeline picks the override that matches each narration_block's mood."
       },
       "engine": "edge-tts",
-      "voice": "th-TH-NiwatNeural",
+      "voice": "th-TH-PremwadeeNeural",
       "rate": "-10%",
       "pitch": "+0Hz",
       "sentence_pause_ms": 200,
@@ -84,6 +84,11 @@
         "melancholy": {
           "sentence_pause_ms": 500,
           "rate_override": "-18%"
+        },
+        "tense": {
+          "sentence_pause_ms": 320,
+          "paragraph_pause_ms": 950,
+          "rate_override": "-12%"
         }
       }
     },
@@ -118,7 +123,7 @@
         "tone": "FIXED | 'realistic' (default) or 'anime'. Auto-injects style keywords + picks the default base_model. Override image_generation.base_model to be specific."
       },
       "base_prompt": "dramatic atmosphere, natural lighting, shallow depth of field, 35mm film, sharp focus, detailed skin texture",
-      "negative_prompt": "low quality, blurry, bad anatomy, deformed hands, text, watermark, logo, oversaturated",
+      "negative_prompt": "low quality, blurry, bad anatomy, deformed hands, watermark, logo, oversaturated",
       "color_grade": "warm_cozy",
       "tone": "realistic"
     },
@@ -151,37 +156,6 @@
         "reference_image": null
       }
     },
-    "audio": {
-      "_doc": {
-        "_intent": "FIXED — the channel's audio palette. Track refs use library:// scheme; drop the actual mp3s in library/audio/{music,ambience}/",
-        "music_bed": "FIXED | per-mood music selection. Pipeline picks based on the block's mood.",
-        "ambience": "FIXED | layered under music. 'rain_soft', 'cafe_quiet', etc.",
-        "_volume_units": "volume_db is negative (quieter than 0). -22 dB = comfortable bed under narration",
-        "_duck_explainer": "duck_during_dialogue_db: how much to drop music while narration plays. -6 to -8 dB is standard"
-      },
-      "music_bed": {
-        "default": "library://music/cozy_piano_01_ai",
-        "by_mood": {
-          "funny": "library://music/playful_uke_01_ai",
-          "romantic": "library://music/strings_warm_02_ai",
-          "playful": "library://music/playful_uke_01_ai",
-          "melancholy": "library://music/piano_rain_01_ai"
-        },
-        "volume_db": -22,
-        "crossfade_ms": 1500,
-        "duck_during_dialogue_db": -6
-      },
-      "ambience": {
-        "default": "library://ambience/rain_soft_ai",
-        "by_mood": {
-          "cozy": "library://ambience/cafe_quiet_ai",
-          "funny": "library://ambience/cafe_quiet_ai",
-          "romantic": "library://ambience/rain_soft_ai",
-          "melancholy": "library://ambience/rain_window_ai"
-        },
-        "volume_db": -28
-      }
-    },
     "subtitles": {
       "_doc": {
         "_intent": "FIXED | default off. Subtitles overlay on the image and can crowd cinematic frames.",
@@ -199,19 +173,17 @@
     },
     "intro": {
       "_doc": {
-        "_intent": "FIXED for channel branding (logo, music, durations). PER_EPISODE only changes via project.title → spoken automatically.",
+        "_intent": "FIXED for channel branding (logo and durations). PER_EPISODE only changes via project.title → spoken automatically.",
         "show": "FIXED | true = show 5s logo + 4.5s title card before the story starts",
         "channel_name": "FIXED | spoken in the welcome narration: 'ยินดีต้อนรับสู่ช่อง <channel_name> ขอให้สนุกกับการรับฟังนะครับ'",
         "welcome_duration_sec": "FIXED | how long the logo stays on screen (also caps the welcome narration)",
         "title_card_duration_sec": "FIXED | how long the episode title card stays on screen",
-        "background_music_ref": "FIXED | music under the intro. library://music/<name>",
         "logo_ref": "FIXED | full-screen logo image. library://overlays/<name>. Falls back to intro/logo.png convention"
       },
       "show": true,
-      "channel_name": "T-H-A-I Novel",
+      "channel_name": "T H A I Novel",
       "welcome_duration_sec": 5,
       "title_card_duration_sec": 4.5,
-      "background_music_ref": "library://music/intro_theme_ai",
       "logo_ref": "library://overlays/channel_logo"
     },
     "chapters": [
@@ -220,6 +192,9 @@
           "PER_EPISODE — this is where the story lives.",
           "NEW WORKFLOW: exactly 1 chapter per source episode. That chapter owns the episode's only photo.",
           "Use multiple narration_blocks inside this one chapter when the episode is long or mood changes.",
+          "TOTAL LENGTH: 8000-10000 Thai characters across all narration_blocks in this source episode.",
+          "RECAP LIMIT: at most 1-3 short sentences, inside an active scene, only when the remembered fact changes the present decision. Never add a standalone summary paragraph or reuse wording from another episode.",
+          "QUALITY GATE: scan all active episodes for duplicate paragraphs, sentences, and long shared text fragments before delivery.",
           "Chapter id should stay 'ch_01'.",
           "show_title_card: default FALSE — this is an audiobook, so silent title cards between chapters are dead air. Set true only for deliberate visual interludes."
         ],
@@ -256,7 +231,8 @@
             "_doc": [
               "PER_EPISODE — actual story narration.",
               "TARGET LENGTH: 1500–3000 Thai characters per block. Shorter = choppy; longer = audience drops off.",
-              "MOOD drives pacing (see tts.mood_pauses) AND music/ambience selection.",
+              "Split long Thai paragraphs at natural action, speaker, cause/effect, or time turns so TTS segments stay under 400 characters; do not put every short sentence in its own paragraph.",
+              "MOOD drives narration pacing through tts.mood_pauses.",
               "Allowed moods: cozy | funny | romantic | tense | melancholy | playful",
               "duration_hint_sec is ADVISORY only — actual duration comes from real edge-tts output."
             ],
